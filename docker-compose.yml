@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: stockcheck-postgres
+    environment:
+      POSTGRES_DB: stockcheck
+      POSTGRES_USER: stockcheck
+      POSTGRES_PASSWORD: stockcheck
+    ports:
+      - "5434:5432"
+    volumes:
+      - stockcheck-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  stockcheck-postgres-data:

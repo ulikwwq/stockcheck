@@ -1,0 +1,21 @@
+CREATE TABLE categories (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE products (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    sku VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    price NUMERIC(12, 2) NOT NULL,
+    category_id BIGINT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_products_category
+        FOREIGN KEY (category_id)
+        REFERENCES categories(id)
+);
