@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: stockcheck-backend
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5434/stockcheck}
+    username: ${DB_USERNAME:stockcheck}
+    password: ${DB_PASSWORD:stockcheck}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+
+server:
+  port: ${PORT:8080}
+
+security:
+  jwt:
+    # 256-bit default secret key for local development (HMAC-SHA256)
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    # 24 hours in milliseconds (86,400,000 ms)
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
