@@ -5,16 +5,16 @@ import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
 import com.lowagie.text.Element;
 import com.lowagie.text.Font;
-import com.lowagie.text.FontFactory;
 import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
+import com.lowagie.text.pdf.BaseFont;
+import com.lowagie.text.pdf.ColumnText;
 import com.lowagie.text.pdf.PdfContentByte;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfPageEventHelper;
 import com.lowagie.text.pdf.PdfWriter;
-import com.lowagie.text.pdf.ColumnText;
 import com.stockcheck.backend.product.Product;
 import com.stockcheck.backend.product.ProductRepository;
 import com.stockcheck.backend.security.SecurityUtils;
@@ -27,6 +27,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
@@ -41,6 +43,15 @@ import java.util.UUID;
  * Products page. Only ever includes products belonging to the currently
  * authenticated user's own tenant - the tenant is resolved from the
  * security context, never accepted from the caller.
+ *
+ * <p>Text is rendered with an embedded Unicode TTF font (Lora, SIL OFL
+ * licensed - see {@code /fonts/OFL.txt} on the classpath) rather than a
+ * standard Base-14 PDF font. Base-14 fonts such as Helvetica only cover
+ * Latin-1 and render Cyrillic characters as blank/invisible glyphs, which
+ * is unacceptable for a fully Russian-localized report. Embedding a real
+ * Unicode font with {@link BaseFont#IDENTITY_H} encoding also makes the PDF
+ * self-contained: it renders identically regardless of what fonts happen
+ * to be installed on the server (Render's Linux container included).
  */
 @Service
 public class ProductReportService {
@@ -48,12 +59,20 @@ public class ProductReportService {
     private static final Color HEADER_BACKGROUND = new Color(30, 41, 59); // slate-800, matches app palette
     private static final DateTimeFormatter GENERATED_AT_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
+    private static final String REGULAR_FONT_RESOURCE = "/fonts/Lora-Regular.ttf";
+    private static final String BOLD_FONT_RESOURCE = "/fonts/Lora-Bold.ttf";
+
     private final ProductRepository productRepository;
     private final TenantRepository tenantRepository;
+
+    private final BaseFont regularBaseFont;
+    private final BaseFont boldBaseFont;
 
     public ProductReportService(ProductRepository productRepository, TenantRepository tenantRepository) {
         this.productRepository = productRepository;
         this.tenantRepository = tenantRepository;
+        this.regularBaseFont = loadEmbeddedBaseFont(REGULAR_FONT_RESOURCE);
+        this.boldBaseFont = loadEmbeddedBaseFont(BOLD_FONT_RESOURCE);
     }
 
     @Transactional(readOnly = true)
@@ -80,14 +99,14 @@ public class ProductReportService {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         Document document = new Document(PageSize.A4, 36, 36, 54, 48);
         PdfWriter writer = PdfWriter.getInstance(document, output);
-        writer.setPageEvent(new PageNumberFooter());
+        writer.setPageEvent(new PageNumberFooter(regularBaseFont));
         document.open();
 
-        Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Color.BLACK);
-        Font subtitleFont = FontFactory.getFont(FontFactory.HELVETICA, 10, new Color(100, 116, 139));
-        Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Color.WHITE);
-        Font cellFont = FontFactory.getFont(FontFactory.HELVETICA, 10, Color.BLACK);
-        Font emptyFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 11, new Color(100, 116, 139));
+        Font titleFont = new Font(boldBaseFont, 18, Font.NORMAL, Color.BLACK);
+        Font subtitleFont = new Font(regularBaseFont, 10, Font.NORMAL, new Color(100, 116, 139));
+        Font headerFont = new Font(boldBaseFont, 10, Font.NORMAL, Color.WHITE);
+        Font cellFont = new Font(regularBaseFont, 10, Font.NORMAL, Color.BLACK);
+        Font emptyFont = new Font(regularBaseFont, 11, Font.NORMAL, new Color(100, 116, 139));
 
         document.add(new Paragraph("Отчет по товарам", titleFont));
         document.add(new Paragraph(
@@ -149,9 +168,36 @@ public class ProductReportService {
         return format.format(price) + " сом";
     }
 
-    /** Draws "Стр. N из M" centered at the bottom of every page. */
+    /**
+     * Loads a TTF from the classpath as raw bytes and builds a
+     * Unicode-encoded {@link BaseFont} from them. Reading the bytes
+     * ourselves (rather than passing a file path to OpenPDF) avoids any
+     * assumption about the font being reachable as a plain filesystem
+     * path - it works identically whether running from an IDE, a flat
+     * classpath in tests, or a Spring Boot fat JAR on Render where
+     * resources live inside a nested {@code BOOT-INF/classes} archive.
+     * IDENTITY_H + embedded=true guarantees the glyphs travel with the PDF
+     * itself, so rendering never depends on fonts installed on the server.
+     */
+    private static BaseFont loadEmbeddedBaseFont(String classpathResource) {
+        try (InputStream in = ProductReportService.class.getResourceAsStream(classpathResource)) {
+            if (in == null) {
+                throw new IllegalStateException("Font resource not found on classpath: " + classpathResource);
+            }
+            byte[] fontBytes = in.readAllBytes();
+            return BaseFont.createFont(classpathResource, BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, fontBytes, null);
+        } catch (IOException | DocumentException e) {
+            throw new IllegalStateException("Failed to load embedded PDF font: " + classpathResource, e);
+        }
+    }
+
+    /** Draws "Стр. N" centered at the bottom of every page. */
     private static final class PageNumberFooter extends PdfPageEventHelper {
-        private final Font footerFont = FontFactory.getFont(FontFactory.HELVETICA, 8, new Color(148, 163, 184));
+        private final Font footerFont;
+
+        PageNumberFooter(BaseFont baseFont) {
+            this.footerFont = new Font(baseFont, 8, Font.NORMAL, new Color(148, 163, 184));
+        }
 
         @Override
         public void onEndPage(PdfWriter writer, Document document) {
