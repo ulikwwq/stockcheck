@@ -15,6 +15,11 @@ spring:
   flyway:
     enabled: true
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
 server:
   port: ${PORT:8080}
 
@@ -33,3 +38,9 @@ management:
   endpoint:
     health:
       show-details: never
+
+supabase:
+  url: ${SUPABASE_URL:}
+  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+  storage-bucket: ${SUPABASE_STORAGE_BUCKET:product-images}
+  signed-url-expiry-seconds: ${SUPABASE_SIGNED_URL_EXPIRY_SECONDS:3600}

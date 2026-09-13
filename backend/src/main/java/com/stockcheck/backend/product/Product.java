@@ -41,8 +41,8 @@ public class Product extends BaseEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "image_url", length = 1000)
-    private String imageUrl;
+    @Column(name = "image_path", length = 1000)
+    private String imagePath;
 
     @Column(name = "purchase_price", precision = 12, scale = 2)
     private BigDecimal purchasePrice;
@@ -66,7 +66,7 @@ public class Product extends BaseEntity {
             String name,
             String sku,
             String description,
-            String imageUrl,
+            String imagePath,
             BigDecimal purchasePrice,
             BigDecimal defaultSalePrice,
             int quantity
@@ -76,7 +76,7 @@ public class Product extends BaseEntity {
         this.name = name;
         this.sku = sku;
         this.description = description;
-        this.imageUrl = imageUrl;
+        this.imagePath = imagePath;
         this.purchasePrice = purchasePrice;
         this.defaultSalePrice = defaultSalePrice;
         this.quantity = quantity;
@@ -127,12 +127,12 @@ public class Product extends BaseEntity {
         this.description = description;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
+    public String getImagePath() {
+        return imagePath;
     }
 
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
+    public void setImagePath(String imagePath) {
+        this.imagePath = imagePath;
     }
 
     public BigDecimal getPurchasePrice() {

@@ -11,6 +11,7 @@ import com.stockcheck.backend.role.RoleName;
 import com.stockcheck.backend.security.SecurityUtils;
 import com.stockcheck.backend.shop.Shop;
 import com.stockcheck.backend.shop.ShopRepository;
+import com.stockcheck.backend.storage.SupabaseStorageService;
 import com.stockcheck.backend.user.User;
 import com.stockcheck.backend.user.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -30,19 +31,22 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final AuditLogRepository auditLogRepository;
+    private final SupabaseStorageService storageService;
 
     public ProductService(
             ProductRepository productRepository,
             ShopRepository shopRepository,
             CategoryRepository categoryRepository,
             UserRepository userRepository,
-            AuditLogRepository auditLogRepository
+            AuditLogRepository auditLogRepository,
+            SupabaseStorageService storageService
     ) {
         this.productRepository = productRepository;
         this.shopRepository = shopRepository;
         this.categoryRepository = categoryRepository;
         this.userRepository = userRepository;
         this.auditLogRepository = auditLogRepository;
+        this.storageService = storageService;
     }
 
     @Transactional
@@ -58,7 +62,7 @@ public class ProductService {
                 request.getName().trim(),
                 request.getSku() != null ? request.getSku().trim() : null,
                 request.getDescription(),
-                request.getImageUrl(),
+                null, // photo is attached afterward via POST /products/{id}/image - a product must exist first
                 request.getPurchasePrice(),
                 request.getDefaultSalePrice(),
                 request.getQuantity()
@@ -70,7 +74,7 @@ public class ProductService {
                 shop.getTenant(), currentUser(), "PRODUCT_CREATED", "PRODUCT", saved.getId(), saved.getName()
         ));
 
-        return ProductResponse.fromEntity(saved, true);
+        return ProductResponse.fromEntity(saved, true, null);
     }
 
     @Transactional
@@ -88,9 +92,6 @@ public class ProductService {
         }
         if (request.getDescription() != null) {
             product.setDescription(request.getDescription());
-        }
-        if (request.getImageUrl() != null) {
-            product.setImageUrl(request.getImageUrl());
         }
         if (request.getPurchasePrice() != null) {
             product.setPurchasePrice(request.getPurchasePrice());
@@ -124,7 +125,7 @@ public class ProductService {
             ));
         }
 
-        return ProductResponse.fromEntity(updated, true);
+        return ProductResponse.fromEntity(updated, true, resolveImageUrl(updated));
     }
 
     @Transactional(readOnly = true)
@@ -142,13 +143,13 @@ public class ProductService {
 
             return productRepository.findByShopId(shopId).stream()
                     .filter(Product::isActive)
-                    .map(p -> ProductResponse.fromEntity(p, canViewSensitiveInfo))
+                    .map(p -> ProductResponse.fromEntity(p, canViewSensitiveInfo, resolveImageUrl(p)))
                     .toList();
         }
 
         return productRepository.findByShopTenantId(tenantId).stream()
                 .filter(Product::isActive)
-                .map(p -> ProductResponse.fromEntity(p, canViewSensitiveInfo))
+                .map(p -> ProductResponse.fromEntity(p, canViewSensitiveInfo, resolveImageUrl(p)))
                 .toList();
     }
 
@@ -159,7 +160,17 @@ public class ProductService {
         Product product = productRepository.findByIdAndShopTenantId(id, tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found: " + id));
 
-        return ProductResponse.fromEntity(product, canViewSensitiveInfo());
+        return ProductResponse.fromEntity(product, canViewSensitiveInfo(), resolveImageUrl(product));
+    }
+
+    /**
+     * Generates a fresh signed URL for the product's photo, if it has one.
+     * Signed URLs are short-lived and never persisted - regenerating one on
+     * every read is what lets the private bucket stay private while still
+     * being simple: there is no cache invalidation to get wrong.
+     */
+    private String resolveImageUrl(Product product) {
+        return product.getImagePath() != null ? storageService.createSignedUrl(product.getImagePath()) : null;
     }
 
     /**

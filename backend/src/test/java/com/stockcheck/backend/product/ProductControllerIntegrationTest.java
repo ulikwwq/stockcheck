@@ -55,6 +55,9 @@ class ProductControllerIntegrationTest {
     private ProductService productService;
 
     @MockitoBean
+    private ProductImageService productImageService;
+
+    @MockitoBean
     private com.stockcheck.backend.product.report.ProductReportService productReportService;
 
     private CreateProductRequest buildRequest() {

@@ -86,15 +86,24 @@ export function SellModal({ isOpen, onClose, onSold, onEdit, product, canEdit }:
         {error && <Alert variant="error">{error}</Alert>}
         {success && <Alert variant="success">{success}</Alert>}
 
-        <div className="rounded-xl bg-slate-50 p-4">
-          <p className="text-sm text-slate-500">
-            Остаток: <span className="font-medium text-slate-900">{product.quantity} шт.</span>
-          </p>
-          {product.defaultSalePrice != null && (
-            <p className="mt-1 text-sm text-slate-500">
-              Цена: <span className="font-medium text-slate-900">{formatMoney(product.defaultSalePrice)}</span>
-            </p>
+        <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
+          {product.imageUrl && (
+            <img
+              src={product.imageUrl}
+              alt=""
+              className="h-14 w-14 shrink-0 rounded-lg border border-slate-200 object-cover"
+            />
           )}
+          <div>
+            <p className="text-sm text-slate-500">
+              Остаток: <span className="font-medium text-slate-900">{product.quantity} шт.</span>
+            </p>
+            {product.defaultSalePrice != null && (
+              <p className="mt-1 text-sm text-slate-500">
+                Цена: <span className="font-medium text-slate-900">{formatMoney(product.defaultSalePrice)}</span>
+              </p>
+            )}
+          </div>
         </div>
 
         {outOfStock ? (

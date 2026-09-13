@@ -109,15 +109,28 @@ export function ProductsPage() {
               onClick={() => setSellingProduct(product)}
               className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50"
             >
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-slate-900">{product.name}</p>
-                <p
-                  className={`mt-0.5 text-sm ${
-                    product.quantity <= 0 ? "font-medium text-red-600" : "text-slate-500"
-                  }`}
-                >
-                  {product.quantity <= 0 ? "Товар закончился" : `${product.quantity} шт.`}
-                </p>
+              <div className="flex min-w-0 items-center gap-3">
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-lg border border-slate-200 object-cover"
+                  />
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-200 text-[10px] text-slate-300">
+                    Нет фото
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold text-slate-900">{product.name}</p>
+                  <p
+                    className={`mt-0.5 text-sm ${
+                      product.quantity <= 0 ? "font-medium text-red-600" : "text-slate-500"
+                    }`}
+                  >
+                    {product.quantity <= 0 ? "Товар закончился" : `${product.quantity} шт.`}
+                  </p>
+                </div>
               </div>
               <p className="shrink-0 text-base font-semibold text-slate-900">
                 {formatMoney(product.defaultSalePrice)}

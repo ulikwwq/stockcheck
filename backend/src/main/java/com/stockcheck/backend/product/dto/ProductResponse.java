@@ -27,7 +27,7 @@ public class ProductResponse {
     public ProductResponse() {
     }
 
-    public static ProductResponse fromEntity(Product product, boolean includeSensitiveInfo) {
+    public static ProductResponse fromEntity(Product product, boolean includeSensitiveInfo, String imageUrl) {
         ProductResponse response = new ProductResponse();
         response.setId(product.getId());
         response.setShopId(product.getShop() != null ? product.getShop().getId() : null);
@@ -37,7 +37,7 @@ public class ProductResponse {
         response.setName(product.getName());
         response.setSku(product.getSku());
         response.setDescription(product.getDescription());
-        response.setImageUrl(product.getImageUrl());
+        response.setImageUrl(imageUrl);
         response.setDefaultSalePrice(product.getDefaultSalePrice());
         response.setQuantity(product.getQuantity());
         response.setActive(product.isActive());

@@ -6,6 +6,7 @@ import { Alert } from "../../components/Alert";
 import { productService } from "../../services/productService";
 import { ApiError } from "../../services/apiClient";
 import type { Product } from "../../types/product";
+import { ProductPhotoField } from "./ProductPhotoField";
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -21,7 +22,8 @@ export function ProductFormModal({ isOpen, onClose, onSaved, product }: ProductF
   const [quantity, setQuantity] = useState("0");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [defaultSalePrice, setDefaultSalePrice] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,7 +35,8 @@ export function ProductFormModal({ isOpen, onClose, onSaved, product }: ProductF
     setQuantity(product ? String(product.quantity) : "");
     setPurchasePrice(product?.purchasePrice != null ? String(product.purchasePrice) : "");
     setDefaultSalePrice(product?.defaultSalePrice != null ? String(product.defaultSalePrice) : "");
-    setImageUrl(product?.imageUrl ?? "");
+    setPhotoFile(null);
+    setCurrentImageUrl(product?.imageUrl ?? null);
     setError(null);
   }, [isOpen, product]);
 
@@ -70,14 +73,20 @@ export function ProductFormModal({ isOpen, onClose, onSaved, product }: ProductF
         quantity: Number(quantity),
         purchasePrice: purchasePrice.trim() !== "" ? Number(purchasePrice) : undefined,
         defaultSalePrice: defaultSalePrice.trim() !== "" ? Number(defaultSalePrice) : undefined,
-        imageUrl: imageUrl.trim() || undefined,
       };
 
-      if (isEditing && product) {
-        await productService.update(product.id, payload);
-      } else {
-        await productService.create(payload);
+      // A photo can only be uploaded to a product that already has an ID -
+      // for a new product that means creating it first, then attaching the
+      // staged photo as a second step. From the user's point of view this
+      // is still a single "Сохранить" action.
+      const saved = isEditing && product
+        ? await productService.update(product.id, payload)
+        : await productService.create(payload);
+
+      if (photoFile) {
+        await productService.uploadImage(saved.id, photoFile);
       }
+
       onSaved();
       onClose();
     } catch (err) {
@@ -161,15 +170,15 @@ export function ProductFormModal({ isOpen, onClose, onSaved, product }: ProductF
           </FormField>
         </div>
 
-        <FormField label="Фотография (ссылка)" htmlFor="p-image">
-          <input
-            id="p-image"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            className={inputClass}
-            placeholder="https://…"
-          />
-        </FormField>
+        <ProductPhotoField
+          productId={product?.id}
+          currentImageUrl={currentImageUrl}
+          onFileSelected={setPhotoFile}
+          onImageDeleted={() => {
+            setCurrentImageUrl(null);
+            onSaved();
+          }}
+        />
 
         <div className="mt-1 flex flex-col gap-2">
           <Button type="submit" isLoading={isSubmitting} className="w-full">

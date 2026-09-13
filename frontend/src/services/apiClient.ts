@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
+﻿const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
 
 const TOKEN_STORAGE_KEY = "stockcheck.accessToken";
 
@@ -26,8 +26,6 @@ export function setStoredToken(token: string | null): void {
   }
 }
 
-// Notified when the backend rejects the current token (expired/invalid),
-// so the app can log the user out and return them to /login.
 type UnauthorizedListener = () => void;
 let unauthorizedListener: UnauthorizedListener | null = null;
 
@@ -52,6 +50,15 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
     }
   }
   return url.toString();
+}
+
+function authHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const token = getStoredToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -98,16 +105,45 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   return payload as T;
 }
 
-/**
- * Like apiRequest, but for binary responses (e.g. a PDF) that must not be
- * parsed as JSON. Reuses the same base URL, auth token, and 401 handling.
- */
-export async function apiRequestBlob(path: string, query?: RequestOptions["query"]): Promise<Blob> {
-  const headers: Record<string, string> = {};
-  const token = getStoredToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+export async function apiRequestMultipart<T>(
+  path: string,
+  formData: FormData,
+  method: "POST" | "PUT" | "PATCH" | "DELETE" = "POST",
+): Promise<T> {
+  const headers = authHeaders();
+
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path), {
+      method,
+      headers,
+      body: formData,
+    });
+  } catch {
+    throw new ApiError(0, "Could not reach the server. Check that the backend is running.");
   }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const isJson = response.headers.get("content-type")?.includes("application/json");
+  const payload = isJson ? await response.json().catch(() => null) : null;
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      unauthorizedListener?.();
+    }
+    const message =
+      (payload && (payload.message || payload.error)) || response.statusText || "Request failed";
+    throw new ApiError(response.status, message, payload?.path);
+  }
+
+  return payload as T;
+}
+
+export async function apiRequestBlob(path: string, query?: RequestOptions["query"]): Promise<Blob> {
+  const headers = authHeaders();
 
   let response: Response;
   try {
@@ -130,3 +166,4 @@ export async function apiRequestBlob(path: string, query?: RequestOptions["query
 
   return response.blob();
 }
+

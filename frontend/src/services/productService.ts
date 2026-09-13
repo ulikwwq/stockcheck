@@ -1,4 +1,4 @@
-import { apiRequest, apiRequestBlob } from "./apiClient";
+﻿import { apiRequest, apiRequestBlob, apiRequestMultipart } from "./apiClient";
 import type { CreateProductRequest, Product, UpdateProductRequest } from "../types/product";
 
 export const productService = {
@@ -18,7 +18,18 @@ export const productService = {
     return apiRequest<Product>(`/products/${id}`, { method: "PUT", body: request });
   },
 
+  uploadImage(id: string, file: File): Promise<Product> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiRequestMultipart<Product>(`/products/${id}/image`, formData);
+  },
+
+  deleteImage(id: string): Promise<void> {
+    return apiRequestMultipart<void>(`/products/${id}/image`, new FormData(), "DELETE");
+  },
+
   downloadInventoryReportPdf(): Promise<Blob> {
     return apiRequestBlob("/products/report/pdf");
   },
 };
+

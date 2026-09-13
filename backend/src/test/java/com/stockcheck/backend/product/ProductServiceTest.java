@@ -1,5 +1,6 @@
 package com.stockcheck.backend.product;
 
+import com.stockcheck.backend.storage.SupabaseStorageService;
 import com.stockcheck.backend.audit.AuditLogRepository;
 import com.stockcheck.backend.category.Category;
 import com.stockcheck.backend.category.CategoryRepository;
@@ -52,6 +53,9 @@ class ProductServiceTest {
 
     @Mock
     private AuditLogRepository auditLogRepository;
+
+    @Mock
+    private SupabaseStorageService storageService;
 
     @InjectMocks
     private ProductService productService;
