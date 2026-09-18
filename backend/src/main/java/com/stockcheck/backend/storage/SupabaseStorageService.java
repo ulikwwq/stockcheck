@@ -16,6 +16,7 @@ import org.springframework.web.util.UriUtils;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Thin wrapper around Supabase Storage's REST API.
@@ -78,6 +79,31 @@ public class SupabaseStorageService {
             // failing the caller's request over a cleanup step. Logged so
             // it can be cleaned up manually if it keeps happening.
             log.warn("Supabase Storage delete failed for path {} (continuing)", path, e);
+        }
+    }
+
+    /**
+     * Downloads the object at {@code path} for backend-side use (currently
+     * the PDF report). Best-effort by design: a missing, unreadable or
+     * slow-to-fetch image must never fail the caller's whole operation, so
+     * failures are logged and reported as an empty result rather than
+     * thrown. Callers render without the image in that case.
+     */
+    public Optional<byte[]> downloadOptional(String path) {
+        if (properties.getUrl().isBlank() || properties.getServiceRoleKey().isBlank()) {
+            log.warn("Supabase Storage is not configured; skipping image download for path {}", path);
+            return Optional.empty();
+        }
+        try {
+            byte[] content = restClient.get()
+                    .uri(objectUri("/storage/v1/object/", path))
+                    .headers(this::authHeaders)
+                    .retrieve()
+                    .body(byte[].class);
+            return Optional.ofNullable(content).filter(bytes -> bytes.length > 0);
+        } catch (RestClientException e) {
+            log.warn("Supabase Storage download failed for path {} (continuing without image)", path, e);
+            return Optional.empty();
         }
     }
 

@@ -37,6 +37,9 @@ class ProductReportServiceTest {
     @Mock
     private TenantRepository tenantRepository;
 
+    @Mock
+    private com.stockcheck.backend.storage.SupabaseStorageService storageService;
+
     @InjectMocks
     private ProductReportService productReportService;
 
@@ -135,5 +138,80 @@ class ProductReportServiceTest {
 
         org.mockito.Mockito.verify(productRepository).findByShopTenantId(eq(tenantId));
         org.mockito.Mockito.verify(productRepository, org.mockito.Mockito.never()).findByShopTenantId(eq(otherTenantId));
+    }
+
+    @Test
+    @DisplayName("a product with a photo has its image bytes fetched server-side (never a Supabase URL) and embedded")
+    void shouldEmbedProductImage() {
+        setUpTenant();
+        authenticateAs(tenantId);
+
+        Product withPhoto = new Product(shop, null, "Кофе", null, null, null, null, null, 5);
+        ReflectionTestUtils.setField(withPhoto, "id", UUID.randomUUID());
+        String imagePath = "tenants/" + tenantId + "/products/" + withPhoto.getId() + "/photo.png";
+        withPhoto.setImagePath(imagePath);
+
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(productRepository.findByShopTenantId(tenantId)).thenReturn(List.of(withPhoto));
+        when(storageService.downloadOptional(imagePath)).thenReturn(Optional.of(onePixelPng()));
+
+        byte[] pdf = productReportService.generateInventoryReportPdf();
+
+        assertThat(pdf).isNotEmpty();
+        assertThat(new String(pdf, 0, 5, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF-");
+        org.mockito.Mockito.verify(storageService).downloadOptional(imagePath);
+    }
+
+    @Test
+    @DisplayName("a product without a photo renders normally and never calls storage")
+    void shouldRenderProductWithoutPhoto() {
+        setUpTenant();
+        authenticateAs(tenantId);
+
+        Product noPhoto = new Product(shop, null, "Чай", null, null, null, null, null, 7);
+        ReflectionTestUtils.setField(noPhoto, "id", UUID.randomUUID());
+
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(productRepository.findByShopTenantId(tenantId)).thenReturn(List.of(noPhoto));
+
+        byte[] pdf = productReportService.generateInventoryReportPdf();
+
+        assertThat(pdf).isNotEmpty();
+        org.mockito.Mockito.verifyNoInteractions(storageService);
+    }
+
+    @Test
+    @DisplayName("report still generates when an image is unavailable or corrupt - row renders without the photo")
+    void shouldNotFailWhenImageUnavailableOrCorrupt() {
+        setUpTenant();
+        authenticateAs(tenantId);
+
+        Product unavailable = new Product(shop, null, "Сахар", null, null, null, null, null, 3);
+        ReflectionTestUtils.setField(unavailable, "id", UUID.randomUUID());
+        unavailable.setImagePath("tenants/" + tenantId + "/products/" + unavailable.getId() + "/missing.png");
+
+        Product corrupt = new Product(shop, null, "Соль", null, null, null, null, null, 4);
+        ReflectionTestUtils.setField(corrupt, "id", UUID.randomUUID());
+        corrupt.setImagePath("tenants/" + tenantId + "/products/" + corrupt.getId() + "/broken.png");
+
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(productRepository.findByShopTenantId(tenantId)).thenReturn(List.of(unavailable, corrupt));
+        // Download fails entirely for one, returns non-image bytes for the other.
+        when(storageService.downloadOptional(unavailable.getImagePath())).thenReturn(Optional.empty());
+        when(storageService.downloadOptional(corrupt.getImagePath()))
+                .thenReturn(Optional.of("this is not an image".getBytes(StandardCharsets.UTF_8)));
+
+        byte[] pdf = productReportService.generateInventoryReportPdf();
+
+        // Both rows still produced a valid, complete PDF despite both images failing.
+        assertThat(pdf).isNotEmpty();
+        assertThat(new String(pdf, 0, 5, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF-");
+    }
+
+    /** Smallest possible valid PNG, used so the test needs no binary fixture file. */
+    private static byte[] onePixelPng() {
+        return java.util.Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+        );
     }
 }

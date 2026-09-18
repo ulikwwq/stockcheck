@@ -55,14 +55,35 @@ export function ProductsPage() {
   async function handleOpenPdfReport() {
     setPdfError(null);
     setIsPdfLoading(true);
+
+    // The tab MUST be opened synchronously, inside the click handler's own
+    // call stack. Opening it after `await` puts window.open() outside the
+    // browser's user-activation window, so popup blockers silently block it
+    // (window.open returns null and nothing is thrown) - which is why the
+    // button appeared to do nothing. We open a blank tab up front and only
+    // point it at the blob once the PDF has downloaded.
+    const reportTab = window.open("", "_blank");
+
     try {
       const blob = await productService.downloadInventoryReportPdf();
       const url = URL.createObjectURL(blob);
-      // Opens in a new tab where the browser's own PDF viewer provides
-      // both a preview and a download button - no extra UI needed here.
-      window.open(url, "_blank");
+
+      if (reportTab && !reportTab.closed) {
+        reportTab.location.href = url;
+      } else {
+        // Tab was blocked or closed: fall back to a same-tab download,
+        // which browsers allow without an active popup permission.
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "products-report.pdf";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err) {
+      reportTab?.close();
       setPdfError(err instanceof ApiError ? err.message : "Не удалось сформировать отчет");
     } finally {
       setIsPdfLoading(false);

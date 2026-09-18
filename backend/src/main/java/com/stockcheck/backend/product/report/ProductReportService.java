@@ -5,6 +5,7 @@ import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
 import com.lowagie.text.Element;
 import com.lowagie.text.Font;
+import com.lowagie.text.Image;
 import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
@@ -18,8 +19,11 @@ import com.lowagie.text.pdf.PdfWriter;
 import com.stockcheck.backend.product.Product;
 import com.stockcheck.backend.product.ProductRepository;
 import com.stockcheck.backend.security.SecurityUtils;
+import com.stockcheck.backend.storage.SupabaseStorageService;
 import com.stockcheck.backend.tenant.Tenant;
 import com.stockcheck.backend.tenant.TenantRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +40,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -62,15 +67,26 @@ public class ProductReportService {
     private static final String REGULAR_FONT_RESOURCE = "/fonts/Lora-Regular.ttf";
     private static final String BOLD_FONT_RESOURCE = "/fonts/Lora-Bold.ttf";
 
+    /** ~59px at 72dpi: big enough to identify the product, small enough to keep the PDF compact. */
+    private static final float PHOTO_BOX_POINTS = 42f;
+
+    private static final Logger log = LoggerFactory.getLogger(ProductReportService.class);
+
     private final ProductRepository productRepository;
     private final TenantRepository tenantRepository;
+    private final SupabaseStorageService storageService;
 
     private final BaseFont regularBaseFont;
     private final BaseFont boldBaseFont;
 
-    public ProductReportService(ProductRepository productRepository, TenantRepository tenantRepository) {
+    public ProductReportService(
+            ProductRepository productRepository,
+            TenantRepository tenantRepository,
+            SupabaseStorageService storageService
+    ) {
         this.productRepository = productRepository;
         this.tenantRepository = tenantRepository;
+        this.storageService = storageService;
         this.regularBaseFont = loadEmbeddedBaseFont(REGULAR_FONT_RESOURCE);
         this.boldBaseFont = loadEmbeddedBaseFont(BOLD_FONT_RESOURCE);
     }
@@ -118,17 +134,19 @@ public class ProductReportService {
         if (products.isEmpty()) {
             document.add(new Paragraph("Товаров пока нет", emptyFont));
         } else {
-            PdfPTable table = new PdfPTable(4);
+            PdfPTable table = new PdfPTable(5);
             table.setWidthPercentage(100);
-            table.setWidths(new float[]{42, 16, 21, 21});
+            table.setWidths(new float[]{12, 34, 14, 20, 20});
             table.setHeaderRows(1);
 
+            addHeaderCell(table, "Фото", headerFont);
             addHeaderCell(table, "Товар", headerFont);
             addHeaderCell(table, "Кол-во", headerFont);
             addHeaderCell(table, "Цена закупки", headerFont);
             addHeaderCell(table, "Цена продажи", headerFont);
 
             for (Product product : products) {
+                table.addCell(photoCell(product, cellFont));
                 table.addCell(dataCell(product.getName(), cellFont, Element.ALIGN_LEFT));
                 table.addCell(dataCell(String.valueOf(product.getQuantity()), cellFont, Element.ALIGN_CENTER));
                 table.addCell(dataCell(formatPrice(product.getPurchasePrice()), cellFont, Element.ALIGN_RIGHT));
@@ -140,6 +158,46 @@ public class ProductReportService {
 
         document.close();
         return output.toByteArray();
+    }
+
+    /**
+     * Renders the product's photo, scaled to fit a small fixed box while
+     * preserving its aspect ratio. Bytes are fetched server-side through
+     * the existing storage service - the bucket stays private and no
+     * Supabase URL of any kind ever enters the PDF.
+     *
+     * <p>Deliberately fail-soft: if the product has no photo, the download
+     * fails, or the bytes are not a readable image, the cell simply renders
+     * the "—" placeholder and the rest of the row is unaffected. One bad
+     * image must never break the whole report.
+     */
+    private PdfPCell photoCell(Product product, Font placeholderFont) {
+        String path = product.getImagePath();
+        if (path != null && !path.isBlank()) {
+            try {
+                Optional<byte[]> bytes = storageService.downloadOptional(path);
+                if (bytes.isPresent()) {
+                    Image image = Image.getInstance(bytes.get());
+                    image.scaleToFit(PHOTO_BOX_POINTS, PHOTO_BOX_POINTS);
+                    PdfPCell cell = new PdfPCell(image, false);
+                    cell.setPadding(4f);
+                    cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                    return cell;
+                }
+            } catch (Exception e) {
+                // Covers unreadable/corrupt image bytes (Image.getInstance
+                // throws a variety of types) as well as anything unexpected
+                // from the storage call.
+                log.warn("Skipping product image in report for product {} (path {})", product.getId(), path, e);
+            }
+        }
+
+        PdfPCell cell = new PdfPCell(new Phrase("\u2014", placeholderFont));
+        cell.setPadding(5f);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        return cell;
     }
 
     private static void addHeaderCell(PdfPTable table, String text, Font font) {
