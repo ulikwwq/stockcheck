@@ -13,6 +13,8 @@ public class AuditLogResponse {
     private String entityType;
     private UUID entityId;
     private String details;
+    private String oldValue;
+    private String newValue;
     private LocalDateTime createdAt;
 
     public AuditLogResponse() {
@@ -20,17 +22,23 @@ public class AuditLogResponse {
 
     public static AuditLogResponse fromEntity(AuditLog log) {
         AuditLogResponse response = new AuditLogResponse();
+
         response.setId(log.getId());
         response.setTenantId(log.getTenant() != null ? log.getTenant().getId() : null);
         response.setUserId(log.getUser() != null ? log.getUser().getId() : null);
+
         if (log.getUser() != null) {
             response.setUserName(log.getUser().getDisplayName());
         }
+
         response.setAction(log.getAction());
         response.setEntityType(log.getEntityType());
         response.setEntityId(log.getEntityId());
         response.setDetails(log.getDetails());
+        response.setOldValue(log.getOldValue());
+        response.setNewValue(log.getNewValue());
         response.setCreatedAt(log.getCreatedAt());
+
         return response;
     }
 
@@ -96,6 +104,22 @@ public class AuditLogResponse {
 
     public void setDetails(String details) {
         this.details = details;
+    }
+
+    public String getOldValue() {
+        return oldValue;
+    }
+
+    public void setOldValue(String oldValue) {
+        this.oldValue = oldValue;
+    }
+
+    public String getNewValue() {
+        return newValue;
+    }
+
+    public void setNewValue(String newValue) {
+        this.newValue = newValue;
     }
 
     public LocalDateTime getCreatedAt() {

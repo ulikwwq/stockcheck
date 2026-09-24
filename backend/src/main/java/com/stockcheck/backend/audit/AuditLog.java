@@ -44,6 +44,12 @@ public class AuditLog {
     @Column(name = "details", columnDefinition = "TEXT")
     private String details;
 
+    @Column(name = "old_value", columnDefinition = "TEXT")
+    private String oldValue;
+
+    @Column(name = "new_value", columnDefinition = "TEXT")
+    private String newValue;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -58,6 +64,26 @@ public class AuditLog {
         this.entityType = entityType;
         this.entityId = entityId;
         this.details = details;
+    }
+
+    public AuditLog(
+            Tenant tenant,
+            User user,
+            String action,
+            String entityType,
+            UUID entityId,
+            String details,
+            String oldValue,
+            String newValue
+    ) {
+        this.tenant = tenant;
+        this.user = user;
+        this.action = action;
+        this.entityType = entityType;
+        this.entityId = entityId;
+        this.details = details;
+        this.oldValue = oldValue;
+        this.newValue = newValue;
     }
 
     @PrePersist
@@ -93,6 +119,14 @@ public class AuditLog {
 
     public String getDetails() {
         return details;
+    }
+
+    public String getOldValue() {
+        return oldValue;
+    }
+
+    public String getNewValue() {
+        return newValue;
     }
 
     public LocalDateTime getCreatedAt() {

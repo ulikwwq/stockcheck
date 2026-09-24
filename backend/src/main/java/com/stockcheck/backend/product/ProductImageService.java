@@ -80,7 +80,14 @@ public class ProductImageService {
         }
 
         auditLogRepository.save(new AuditLog(
-                product.getShop().getTenant(), currentUser(), "PRODUCT_IMAGE_UPDATED", "PRODUCT", saved.getId(), saved.getName()
+                product.getShop().getTenant(),
+                currentUser(),
+                "PRODUCT_IMAGE_UPDATED",
+                "PRODUCT",
+                saved.getId(),
+                saved.getName(),
+                oldPath == null ? "Без фото" : "Фото",
+                "Фото"
         ));
 
         return saved;
@@ -101,9 +108,15 @@ public class ProductImageService {
         storageService.delete(oldPath);
 
         auditLogRepository.save(new AuditLog(
-                product.getShop().getTenant(), currentUser(), "PRODUCT_IMAGE_DELETED", "PRODUCT", saved.getId(), saved.getName()
+                product.getShop().getTenant(),
+                currentUser(),
+                "PRODUCT_IMAGE_DELETED",
+                "PRODUCT",
+                saved.getId(),
+                saved.getName(),
+                "Фото",
+                "Без фото"
         ));
-
         return saved;
     }
 

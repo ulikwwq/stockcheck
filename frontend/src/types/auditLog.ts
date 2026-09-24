@@ -7,5 +7,7 @@ export interface AuditLog {
   entityType: string;
   entityId: string | null;
   details: string | null;
+  oldValue: string | null;
+  newValue: string | null;
   createdAt: string;
 }

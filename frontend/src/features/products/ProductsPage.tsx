@@ -122,7 +122,7 @@ export function ProductsPage() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-2.5">
+       <div className="flex flex-col gap-2.5 pb-24">
           {products.map((product) => (
             <button
               key={product.id}

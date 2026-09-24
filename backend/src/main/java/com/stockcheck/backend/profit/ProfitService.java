@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -56,7 +56,7 @@ public class ProfitService {
         List<Object[]> rows = saleItemRepository.calculateDailyBreakdown(tenantId, since);
         return rows.stream()
                 .map(row -> new DailyProfitResponse(
-                        ((Date) row[0]).toLocalDate(),
+                        (LocalDate) row[0],
                         (BigDecimal) row[1],
                         (BigDecimal) row[2],
                         (BigDecimal) row[3],

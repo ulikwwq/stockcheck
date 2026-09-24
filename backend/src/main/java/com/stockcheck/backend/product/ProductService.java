@@ -19,8 +19,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -32,6 +36,7 @@ public class ProductService {
     private final UserRepository userRepository;
     private final AuditLogRepository auditLogRepository;
     private final SupabaseStorageService storageService;
+    private final ObjectMapper objectMapper;
 
     public ProductService(
             ProductRepository productRepository,
@@ -39,7 +44,8 @@ public class ProductService {
             CategoryRepository categoryRepository,
             UserRepository userRepository,
             AuditLogRepository auditLogRepository,
-            SupabaseStorageService storageService
+            SupabaseStorageService storageService,
+            ObjectMapper objectMapper
     ) {
         this.productRepository = productRepository;
         this.shopRepository = shopRepository;
@@ -47,6 +53,7 @@ public class ProductService {
         this.userRepository = userRepository;
         this.auditLogRepository = auditLogRepository;
         this.storageService = storageService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -84,6 +91,19 @@ public class ProductService {
         Product product = productRepository.findByIdAndShopTenantId(id, tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found: " + id));
 
+        Map<String, Object> oldValues = new LinkedHashMap<>();
+        oldValues.put("name", product.getName());
+        oldValues.put("sku", product.getSku());
+        oldValues.put("description", product.getDescription());
+        oldValues.put("purchasePrice", product.getPurchasePrice());
+        oldValues.put("defaultSalePrice", product.getDefaultSalePrice());
+        oldValues.put("quantity", product.getQuantity());
+        oldValues.put("active", product.isActive());
+        oldValues.put(
+                "categoryId",
+                product.getCategory() != null ? product.getCategory().getId() : null
+        );
+
         if (StringUtils.hasText(request.getName())) {
             product.setName(request.getName().trim());
         }
@@ -112,7 +132,33 @@ public class ProductService {
             product.setCategory(resolveCategory(request.getCategoryId(), tenantId));
         }
 
+        Map<String, Object> newValues = new LinkedHashMap<>();
+        newValues.put("name", product.getName());
+        newValues.put("sku", product.getSku());
+        newValues.put("description", product.getDescription());
+        newValues.put("purchasePrice", product.getPurchasePrice());
+        newValues.put("defaultSalePrice", product.getDefaultSalePrice());
+        newValues.put("quantity", product.getQuantity());
+        newValues.put("active", product.isActive());
+        newValues.put(
+                "categoryId",
+                product.getCategory() != null ? product.getCategory().getId() : null
+        );
+
         Product updated = productRepository.save(product);
+
+        if (!oldValues.equals(newValues)) {
+            auditLogRepository.save(new AuditLog(
+                    product.getShop().getTenant(),
+                    currentUser(),
+                    "PRODUCT_UPDATED",
+                    "PRODUCT",
+                    updated.getId(),
+                    updated.getName(),
+                    toJson(oldValues),
+                    toJson(newValues)
+            ));
+        }
 
         if (request.getActive() != null && wasActive != request.getActive()) {
             auditLogRepository.save(new AuditLog(
@@ -169,6 +215,15 @@ public class ProductService {
      * every read is what lets the private bucket stay private while still
      * being simple: there is no cache invalidation to get wrong.
      */
+
+    private String toJson(Map<String, Object> values) {
+        try {
+            return objectMapper.writeValueAsString(values);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Не удалось сформировать данные аудита", e);
+        }
+    }
+
     private String resolveImageUrl(Product product) {
         return product.getImagePath() != null ? storageService.createSignedUrl(product.getImagePath()) : null;
     }

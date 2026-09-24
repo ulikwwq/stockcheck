@@ -70,20 +70,77 @@ export function ProfitPage() {
           {history.length > 0 && (
             <div className="flex flex-col gap-2.5">
               <p className="text-sm font-medium text-slate-500">Предыдущие дни</p>
+
               {history.map((day) => (
-                <div
+                <details
                   key={day.date}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                  className="rounded-2xl border border-slate-200 bg-white shadow-sm"
                 >
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{formatDate(day.date)}</p>
-                    <p className="text-xs text-slate-500">Выручка: {formatMoney(day.revenue)}</p>
+                  <summary className="flex cursor-pointer list-none items-center justify-between p-4">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        {formatDate(day.date)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Выручка: {formatMoney(day.revenue)}
+                      </p>
+                    </div>
+
+                    <p
+                      className={`font-semibold ${
+                        day.profit < 0 ? "text-red-600" : "text-emerald-700"
+                      }`}
+                    >
+                      {day.profit >= 0 ? "+" : ""}
+                      {formatMoney(day.profit)}
+                    </p>
+                  </summary>
+
+                  <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+                    <dl className="flex flex-col gap-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <dt className="text-slate-500">Выручка</dt>
+                        <dd className="font-medium text-slate-900">
+                          {formatMoney(day.revenue)}
+                        </dd>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <dt className="text-slate-500">Себестоимость</dt>
+                        <dd className="font-medium text-slate-900">
+                          {formatMoney(day.cost)}
+                        </dd>
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-slate-100 pt-2">
+                        <dt
+                          className={
+                            day.profit < 0 ? "text-red-600" : "text-emerald-700"
+                          }
+                        >
+                          {day.profit < 0 ? "Убыток" : "Прибыль"}
+                        </dt>
+
+                        <dd
+                          className={`font-bold ${
+                            day.profit < 0
+                              ? "text-red-600"
+                              : "text-emerald-700"
+                          }`}
+                        >
+                          {day.profit >= 0 ? "+" : ""}
+                          {formatMoney(day.profit)}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    {day.profitPartiallyUnavailable && (
+                      <p className="mt-3 text-xs text-slate-400">
+                        Для части товаров не указана цена закупки — прибыль по ним не рассчитана.
+                      </p>
+                    )}
                   </div>
-                  <p className={`font-semibold ${day.profit < 0 ? "text-red-600" : "text-emerald-700"}`}>
-                    {day.profit >= 0 ? "+" : ""}
-                    {formatMoney(day.profit)}
-                  </p>
-                </div>
+                </details>
               ))}
             </div>
           )}
