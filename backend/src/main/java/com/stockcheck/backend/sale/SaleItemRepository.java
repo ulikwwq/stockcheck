@@ -13,14 +13,11 @@ public interface SaleItemRepository extends JpaRepository<SaleItem, UUID> {
 
     List<SaleItem> findBySaleId(UUID saleId);
 
-    @Query("SELECT COALESCE(SUM(si.profit), 0) FROM SaleItem si JOIN si.sale s JOIN s.shop sh WHERE sh.tenant.id = :tenantId")
-    BigDecimal calculateTotalProfitByTenantId(@Param("tenantId") UUID tenantId);
+    @Query("SELECT COALESCE(SUM(si.profit), 0) FROM SaleItem si JOIN si.sale s JOIN s.shop sh WHERE sh.tenant.id = :tenantId AND s.returned = false")    BigDecimal calculateTotalProfitByTenantId(@Param("tenantId") UUID tenantId);
 
-    @Query("SELECT COALESCE(SUM(si.salePrice * si.quantity), 0) FROM SaleItem si JOIN si.sale s JOIN s.shop sh WHERE sh.tenant.id = :tenantId")
-    BigDecimal calculateTotalRevenueByTenantId(@Param("tenantId") UUID tenantId);
+    @Query("SELECT COALESCE(SUM(si.salePrice * si.quantity), 0) FROM SaleItem si JOIN si.sale s JOIN s.shop sh WHERE sh.tenant.id = :tenantId AND s.returned = false")    BigDecimal calculateTotalRevenueByTenantId(@Param("tenantId") UUID tenantId);
 
-    @Query("SELECT COALESCE(SUM(si.purchasePrice * si.quantity), 0) FROM SaleItem si JOIN si.sale s JOIN s.shop sh WHERE sh.tenant.id = :tenantId")
-    BigDecimal calculateTotalCostByTenantId(@Param("tenantId") UUID tenantId);
+    @Query("SELECT COALESCE(SUM(si.purchasePrice * si.quantity), 0) FROM SaleItem si JOIN si.sale s JOIN s.shop sh WHERE sh.tenant.id = :tenantId AND s.returned = false")    BigDecimal calculateTotalCostByTenantId(@Param("tenantId") UUID tenantId);
 
     /**
      * Per-day rollup used by the "Прибыль" screen. Each row is:
@@ -37,7 +34,7 @@ public interface SaleItemRepository extends JpaRepository<SaleItem, UUID> {
             "FROM sale_items si " +
             "JOIN sales s ON s.id = si.sale_id " +
             "JOIN shops sh ON sh.id = s.shop_id " +
-            "WHERE sh.tenant_id = :tenantId AND s.created_at >= :since " +
+            "WHERE sh.tenant_id = :tenantId AND s.created_at >= :since AND s.returned = false " +
             "GROUP BY CAST(s.created_at AS date) " +
             "ORDER BY day DESC", nativeQuery = true)
     List<Object[]> calculateDailyBreakdown(@Param("tenantId") UUID tenantId, @Param("since") LocalDateTime since);

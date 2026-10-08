@@ -15,6 +15,7 @@ public class SaleResponse {
     private UUID sellerId;
     private String sellerName;
     private BigDecimal totalAmount;
+    private boolean returned;
     private List<SaleItemResponse> items;
     private LocalDateTime createdAt;
 
@@ -31,6 +32,7 @@ public class SaleResponse {
             response.setSellerName(sale.getSeller().getDisplayName());
         }
         response.setTotalAmount(sale.getTotalAmount());
+        response.setReturned(sale.isReturned());
         response.setCreatedAt(sale.getCreatedAt());
 
         if (sale.getItems() != null) {
@@ -88,6 +90,14 @@ public class SaleResponse {
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public boolean isReturned() {
+        return returned;
+    }
+
+    public void setReturned(boolean returned) {
+        this.returned = returned;
     }
 
     public List<SaleItemResponse> getItems() {

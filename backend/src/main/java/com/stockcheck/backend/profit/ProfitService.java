@@ -37,8 +37,9 @@ public class ProfitService {
         BigDecimal totalRevenue = saleItemRepository.calculateTotalRevenueByTenantId(tenantId);
         BigDecimal totalCost = saleItemRepository.calculateTotalCostByTenantId(tenantId);
         BigDecimal totalProfit = saleItemRepository.calculateTotalProfitByTenantId(tenantId);
-        long totalSalesCount = saleRepository.findByTenantId(tenantId).size();
-
+        long totalSalesCount = saleRepository.findByTenantId(tenantId).stream()
+                .filter(sale -> !sale.isReturned())
+                .count();
         return new ProfitSummaryResponse(
                 totalRevenue != null ? totalRevenue : BigDecimal.ZERO,
                 totalCost != null ? totalCost : BigDecimal.ZERO,

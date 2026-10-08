@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { auditLogService } from "../../services/auditLogService";
-import { ApiError } from "../../services/apiClient";
+import { apiRequest, ApiError } from "../../services/apiClient";
 import type { AuditLog } from "../../types/auditLog";
 import { LoadingState, EmptyState, ErrorState } from "../../components/DataStates";
 import { formatDateTime, formatMoney } from "../../utils/format";
@@ -19,6 +19,8 @@ function describe(log: AuditLog): string {
       return `Изменен товар «${details}»`;
     case "SALE_CREATED":
       return `Продажа на сумму ${formatMoney(Number(details))}`;
+    case "SALE_RETURNED":
+      return `Возврат продажи на сумму ${formatMoney(Number(details))}`;
     case "SELLER_CREATED":
       return `Добавлен продавец «${details}»`;
     case "SELLER_ACTIVATED":
@@ -186,6 +188,12 @@ export function AuditLogPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const returnedSaleIds = new Set(
+    logs
+      .filter((log) => log.action === "SALE_RETURNED" && log.entityId)
+      .map((log) => log.entityId!)
+  );
+  const [returningSaleId, setReturningSaleId] = useState<string | null>(null);
 
   useEffect(() => {
     auditLogService
@@ -200,6 +208,31 @@ export function AuditLogPage() {
       )
       .finally(() => setIsLoading(false));
   }, []);
+
+const handleReturnSale = async (saleId: string) => {
+  if (!window.confirm("Вернуть товары из этой продажи на склад?")) {
+    return;
+  }
+
+  try {
+    setReturningSaleId(saleId);
+
+    await apiRequest(`/sales/${saleId}/return`, {
+      method: "POST",
+    });
+
+    const updatedLogs = await auditLogService.list();
+    setLogs(updatedLogs);
+  } catch (err) {
+    setError(
+      err instanceof ApiError
+        ? err.message
+        : "Не удалось выполнить возврат"
+    );
+  } finally {
+    setReturningSaleId(null);
+  }
+};
 
   return (
     <div className="flex flex-col gap-4">
@@ -219,15 +252,23 @@ export function AuditLogPage() {
             const isExpanded = expandedLogId === log.id;
 
             return (
-              <button
-                key={log.id}
-                type="button"
-                onClick={() =>
-                  setExpandedLogId(isExpanded ? null : log.id)
-                }
-                className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-slate-300"
-              >
-                <div className="flex items-start justify-between gap-3">
+            <div
+              key={log.id}
+              className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-slate-300"
+            >
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() =>
+                    setExpandedLogId(isExpanded ? null : log.id)
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      setExpandedLogId(isExpanded ? null : log.id);
+                    }
+                  }}
+                  className="flex cursor-pointer items-start justify-between gap-3"
+                >
                   <div className="min-w-0">
                     <p className="text-xs text-slate-400">
                       {formatDateTime(log.createdAt)}
@@ -279,12 +320,29 @@ export function AuditLogPage() {
                           {log.entityType}
                         </p>
                       </div>
+                      {log.action === "SALE_CREATED" &&
+                        log.entityId &&
+                        !returnedSaleIds.has(log.entityId) && (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleReturnSale(log.entityId!);
+                            }}
+                            disabled={returningSaleId === log.entityId}
+                            className="mt-4 rounded-xl bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {returningSaleId === log.entityId
+                              ? "Возврат..."
+                              : "Возврат товара"}
+                          </button>
+                        )}
                     </div>
 
                     <AuditChanges log={log} />
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>

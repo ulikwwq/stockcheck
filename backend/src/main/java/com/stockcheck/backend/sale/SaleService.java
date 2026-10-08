@@ -178,6 +178,75 @@ public class SaleService {
         return SaleResponse.fromEntity(sale, canViewSensitiveInfo());
     }
 
+    @Transactional
+    public SaleResponse returnSale(UUID id) {
+        UUID tenantId = SecurityUtils.getCurrentTenantId()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Authenticated tenant context is required"
+                ));
+
+        UUID userId = SecurityUtils.getCurrentUserId()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Authenticated user context is required"
+                ));
+
+        Sale sale = saleRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Продажа не найдена"
+                ));
+
+        if (sale.isReturned()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Эта продажа уже возвращена"
+            );
+        }
+
+        User currentUser = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Пользователь не найден"
+                ));
+
+        for (SaleItem item : sale.getItems()) {
+            Product product = productRepository.findByIdAndShopTenantIdForUpdate(
+                            item.getProduct().getId(),
+                            tenantId
+                    )
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Товар из продажи не найден"
+                    ));
+
+            product.setQuantity(product.getQuantity() + item.getQuantity());
+            productRepository.save(product);
+
+            stockMovementRepository.save(new StockMovement(
+                    product,
+                    StockMovementType.RETURN,
+                    item.getQuantity(),
+                    currentUser
+            ));
+        }
+
+        sale.setReturned(true);
+        Sale savedSale = saleRepository.save(sale);
+
+        auditLogRepository.save(new AuditLog(
+                sale.getShop().getTenant(),
+                currentUser,
+                "SALE_RETURNED",
+                "SALE",
+                savedSale.getId(),
+                savedSale.getTotalAmount().toPlainString()
+        ));
+
+        return SaleResponse.fromEntity(savedSale, canViewSensitiveInfo());
+    }
+
     private boolean canViewSensitiveInfo() {
         return SecurityUtils.hasRole(RoleName.ADMINISTRATOR) || SecurityUtils.hasRole(RoleName.SUPER_ADMIN);
     }

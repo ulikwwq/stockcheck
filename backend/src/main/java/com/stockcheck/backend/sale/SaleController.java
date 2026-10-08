@@ -12,9 +12,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.UUID;
+
+
 
 @RestController
 @RequestMapping("/api/v1/sales")
@@ -35,6 +38,12 @@ public class SaleController {
     @GetMapping
     public ResponseEntity<List<SaleResponse>> getSales(@RequestParam(required = false) UUID shopId) {
         return ResponseEntity.ok(saleService.getSales(shopId));
+    }
+
+    @PostMapping("/{id}/return")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    public ResponseEntity<SaleResponse> returnSale(@PathVariable UUID id) {
+        return ResponseEntity.ok(saleService.returnSale(id));
     }
 
     @GetMapping("/{id}")

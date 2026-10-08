@@ -40,6 +40,9 @@ public class Sale {
     @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount = BigDecimal.ZERO;
 
+    @Column(name = "returned", nullable = false)
+    private boolean returned = false;
+
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SaleItem> items = new ArrayList<>();
 
@@ -82,6 +85,14 @@ public class Sale {
 
     public BigDecimal getTotalAmount() {
         return totalAmount;
+    }
+
+    public boolean isReturned() {
+        return returned;
+    }
+
+    public void setReturned(boolean returned) {
+        this.returned = returned;
     }
 
     public void setTotalAmount(BigDecimal totalAmount) {

@@ -21,7 +21,13 @@ export function ProfitPage() {
   if (isLoading) return <LoadingState label="Загрузка данных о прибыли…" />;
   if (error) return <ErrorState message={error} />;
 
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+
+  const todayKey = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
   const today = days.find((d) => d.date === todayKey);
   const history = days.filter((d) => d.date !== todayKey);
 
