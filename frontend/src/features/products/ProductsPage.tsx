@@ -16,6 +16,7 @@ export function ProductsPage() {
   const owner = isOwner(user?.roles ?? []);
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +41,10 @@ export function ProductsPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const filteredProducts = products.filter((product) =>
+    product.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   function openCreateModal() {
     setEditingProduct(null);
@@ -104,6 +109,13 @@ export function ProductsPage() {
           PDF
         </Button>
       </div>
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Поиск по названию..."
+        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-400"
+      />
 
       {pdfError && <Alert variant="error">{pdfError}</Alert>}
 
@@ -123,7 +135,7 @@ export function ProductsPage() {
         />
       ) : (
        <div className="flex flex-col gap-2.5 pb-24">
-          {products.map((product) => (
+          {filteredProducts.map((product) => (
             <button
               key={product.id}
               type="button"
