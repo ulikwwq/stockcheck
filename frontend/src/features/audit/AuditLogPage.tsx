@@ -2,8 +2,14 @@ import { useEffect, useState } from "react";
 import { auditLogService } from "../../services/auditLogService";
 import { apiRequest, ApiError } from "../../services/apiClient";
 import type { AuditLog } from "../../types/auditLog";
-import { LoadingState, EmptyState, ErrorState } from "../../components/DataStates";
+import {
+  LoadingState,
+  EmptyState,
+  ErrorState,
+} from "../../components/DataStates";
 import { formatDateTime, formatMoney } from "../../utils/format";
+import type { Sale } from "../../types/sale";
+import { saleService } from "../../services/saleService";
 
 function describe(log: AuditLog): string {
   const details = log.details ?? "";
@@ -21,6 +27,8 @@ function describe(log: AuditLog): string {
       return `Продажа на сумму ${formatMoney(Number(details))}`;
     case "SALE_RETURNED":
       return `Возврат продажи на сумму ${formatMoney(Number(details))}`;
+    case "EXPENSE_CREATED":
+      return `Добавлен расход: ${details}`;
     case "SELLER_CREATED":
       return `Добавлен продавец «${details}»`;
     case "SELLER_ACTIVATED":
@@ -64,10 +72,7 @@ function formatAuditValue(key: string, value: unknown): string {
     return "—";
   }
 
-  if (
-    key === "purchasePrice" ||
-    key === "defaultSalePrice"
-  ) {
+  if (key === "purchasePrice" || key === "defaultSalePrice") {
     return formatMoney(Number(value));
   }
 
@@ -78,7 +83,9 @@ function formatAuditValue(key: string, value: unknown): string {
   return String(value);
 }
 
-function parseAuditValues(value: string | null): Record<string, unknown> | null {
+function parseAuditValues(
+  value: string | null
+): Record<string, unknown> | null {
   if (!value) {
     return null;
   }
@@ -126,7 +133,9 @@ function AuditChanges({ log }: { log: AuditLog }) {
                 const oldValue = oldValues[key];
                 const newValue = newValues[key];
 
-                if (JSON.stringify(oldValue) === JSON.stringify(newValue)) {
+                if (
+                  JSON.stringify(oldValue) === JSON.stringify(newValue)
+                ) {
                   return null;
                 }
 
@@ -138,9 +147,11 @@ function AuditChanges({ log }: { log: AuditLog }) {
                     <td className="px-2 py-2 font-medium text-slate-700">
                       {fieldLabel(key)}
                     </td>
+
                     <td className="px-2 py-2 text-slate-500">
                       {formatAuditValue(key, oldValue)}
                     </td>
+
                     <td className="px-2 py-2 font-medium text-slate-900">
                       {formatAuditValue(key, newValue)}
                     </td>
@@ -164,6 +175,7 @@ function AuditChanges({ log }: { log: AuditLog }) {
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
             <p className="text-xs text-slate-400">Было</p>
+
             <p className="mt-1 text-sm text-slate-500">
               {log.oldValue || "—"}
             </p>
@@ -171,6 +183,7 @@ function AuditChanges({ log }: { log: AuditLog }) {
 
           <div>
             <p className="text-xs text-slate-400">Стало</p>
+
             <p className="mt-1 text-sm font-medium text-slate-900">
               {log.newValue || "—"}
             </p>
@@ -188,12 +201,21 @@ export function AuditLogPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+
+  const [saleDetails, setSaleDetails] = useState<Record<string, Sale>>({});
+  const [loadingSaleId, setLoadingSaleId] = useState<string | null>(null);
+
+  const [returningSaleId, setReturningSaleId] = useState<string | null>(
+    null
+  );
+
   const returnedSaleIds = new Set(
     logs
-      .filter((log) => log.action === "SALE_RETURNED" && log.entityId)
+      .filter(
+        (log) => log.action === "SALE_RETURNED" && log.entityId
+      )
       .map((log) => log.entityId!)
   );
-  const [returningSaleId, setReturningSaleId] = useState<string | null>(null);
 
   useEffect(() => {
     auditLogService
@@ -209,35 +231,62 @@ export function AuditLogPage() {
       .finally(() => setIsLoading(false));
   }, []);
 
-const handleReturnSale = async (saleId: string) => {
-  if (!window.confirm("Вернуть товары из этой продажи на склад?")) {
-    return;
-  }
+  const handleReturnSale = async (saleId: string) => {
+    if (!window.confirm("Вернуть товары из этой продажи на склад?")) {
+      return;
+    }
 
-  try {
-    setReturningSaleId(saleId);
+    try {
+      setReturningSaleId(saleId);
 
-    await apiRequest(`/sales/${saleId}/return`, {
-      method: "POST",
-    });
+      await apiRequest(`/sales/${saleId}/return`, {
+        method: "POST",
+      });
 
-    const updatedLogs = await auditLogService.list();
-    setLogs(updatedLogs);
-  } catch (err) {
-    setError(
-      err instanceof ApiError
-        ? err.message
-        : "Не удалось выполнить возврат"
-    );
-  } finally {
-    setReturningSaleId(null);
-  }
-};
+      const updatedLogs = await auditLogService.list();
+      setLogs(updatedLogs);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Не удалось выполнить возврат"
+      );
+    } finally {
+      setReturningSaleId(null);
+    }
+  };
+
+  const loadSaleDetails = async (saleId: string) => {
+    if (saleDetails[saleId]) {
+      return;
+    }
+
+    try {
+      setLoadingSaleId(saleId);
+
+      const sale = await saleService.get(saleId);
+
+      setSaleDetails((current) => ({
+        ...current,
+        [saleId]: sale,
+      }));
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Не удалось загрузить данные продажи"
+      );
+    } finally {
+      setLoadingSaleId(null);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">История</h1>
+        <h1 className="text-xl font-bold text-slate-900">
+          История
+        </h1>
       </div>
 
       {isLoading ? (
@@ -252,19 +301,34 @@ const handleReturnSale = async (saleId: string) => {
             const isExpanded = expandedLogId === log.id;
 
             return (
-            <div
-              key={log.id}
-              className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-slate-300"
-            >
+              <div
+                key={log.id}
+                className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-slate-300"
+              >
                 <div
                   role="button"
                   tabIndex={0}
-                  onClick={() =>
-                    setExpandedLogId(isExpanded ? null : log.id)
-                  }
+                  onClick={() => {
+                    const nextExpanded = isExpanded ? null : log.id;
+
+                    setExpandedLogId(nextExpanded);
+
+                    if (
+                      !isExpanded &&
+                      log.action === "SALE_CREATED" &&
+                      log.entityId
+                    ) {
+                      void loadSaleDetails(log.entityId);
+                    }
+                  }}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      setExpandedLogId(isExpanded ? null : log.id);
+                    if (
+                      event.key === "Enter" ||
+                      event.key === " "
+                    ) {
+                      setExpandedLogId(
+                        isExpanded ? null : log.id
+                      );
                     }
                   }}
                   className="flex cursor-pointer items-start justify-between gap-3"
@@ -294,50 +358,102 @@ const handleReturnSale = async (saleId: string) => {
                   <div className="mt-4 border-t border-slate-100 pt-4">
                     <div className="grid gap-3 text-sm sm:grid-cols-2">
                       <div>
-                        <p className="text-xs text-slate-400">Кто</p>
+                        <p className="text-xs text-slate-400">
+                          Кто
+                        </p>
+
                         <p className="mt-1 text-slate-900">
                           {log.userName || "Неизвестно"}
                         </p>
                       </div>
 
                       <div>
-                        <p className="text-xs text-slate-400">Когда</p>
+                        <p className="text-xs text-slate-400">
+                          Когда
+                        </p>
+
                         <p className="mt-1 text-slate-900">
                           {formatDateTime(log.createdAt)}
                         </p>
                       </div>
 
                       <div>
-                        <p className="text-xs text-slate-400">Действие</p>
+                        <p className="text-xs text-slate-400">
+                          Действие
+                        </p>
+
                         <p className="mt-1 text-slate-900">
                           {describe(log)}
                         </p>
                       </div>
 
                       <div>
-                        <p className="text-xs text-slate-400">Тип объекта</p>
+                        <p className="text-xs text-slate-400">
+                          Тип объекта
+                        </p>
+
                         <p className="mt-1 text-slate-900">
                           {log.entityType}
                         </p>
                       </div>
-                      {log.action === "SALE_CREATED" &&
-                        log.entityId &&
-                        !returnedSaleIds.has(log.entityId) && (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void handleReturnSale(log.entityId!);
-                            }}
-                            disabled={returningSaleId === log.entityId}
-                            className="mt-4 rounded-xl bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {returningSaleId === log.entityId
-                              ? "Возврат..."
-                              : "Возврат товара"}
-                          </button>
-                        )}
+
+
                     </div>
+
+                    {log.action === "SALE_CREATED" &&
+                      log.entityId && (
+                        <div className="mt-4 border-t border-slate-100 pt-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Проданные товары
+                          </p>
+
+                          {loadingSaleId === log.entityId ? (
+                            <p className="mt-2 text-sm text-slate-500">
+                              Загрузка товаров…
+                            </p>
+                          ) : saleDetails[log.entityId]?.items?.length ? (
+                            <div className="mt-3 flex flex-col gap-2">
+                              {saleDetails[
+                                log.entityId
+                              ].items.map((item) => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2"
+                                >
+                                  <span className="text-sm font-medium text-slate-700">
+                                    {item.productName}
+                                  </span>
+
+                                  <span className="text-sm text-slate-500">
+                                    × {item.quantity}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-sm text-slate-500">
+                              Информация о товарах недоступна
+                            </p>
+                          )}
+                        </div>
+                      )}
+                  {log.action === "SALE_CREATED" &&
+                    log.entityId &&
+                    !returnedSaleIds.has(log.entityId) && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleReturnSale(log.entityId!);
+                        }}
+                        disabled={returningSaleId === log.entityId}
+                        className="mt-4 rounded-xl bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {returningSaleId === log.entityId
+                          ? "Возврат..."
+                          : "Возврат товара"}
+                      </button>
+                    )}
 
                     <AuditChanges log={log} />
                   </div>

@@ -10,10 +10,12 @@ import { Alert } from "../../components/Alert";
 import { formatMoney } from "../../utils/format";
 import { ProductFormModal } from "./ProductFormModal";
 import { SellModal } from "./SellModal";
+import { ExpenseFormModal } from "../expenses/ExpenseFormModal";
 
 export function ProductsPage() {
   const { user } = useAuth();
   const owner = isOwner(user?.roles ?? []);
+  const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -99,15 +101,27 @@ export function ProductsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-slate-900">Товары</h1>
-        <Button
-          type="button"
-          variant="secondary"
-          isLoading={isPdfLoading}
-          onClick={handleOpenPdfReport}
-          className="!min-h-9 !px-3 !py-1.5 text-sm"
-        >
-          PDF
-        </Button>
+
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setIsExpenseFormOpen(true)}
+            className="!min-h-9 !px-3 !py-1.5 text-sm"
+          >
+            Расходы
+          </Button>
+
+          <Button
+            type="button"
+            variant="secondary"
+            isLoading={isPdfLoading}
+            onClick={handleOpenPdfReport}
+            className="!min-h-9 !px-3 !py-1.5 text-sm"
+          >
+            PDF
+          </Button>
+        </div>
       </div>
       <input
         type="text"
@@ -197,6 +211,11 @@ export function ProductsPage() {
         onEdit={owner && sellingProduct ? () => openEditModal(sellingProduct) : undefined}
         product={sellingProduct}
         canEdit={owner}
+      />
+      <ExpenseFormModal
+        isOpen={isExpenseFormOpen}
+        onClose={() => setIsExpenseFormOpen(false)}
+        onSaved={() => {}}
       />
     </div>
   );

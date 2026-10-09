@@ -1,5 +1,7 @@
 package com.stockcheck.backend.profit;
 
+import com.stockcheck.backend.expense.Expense;
+import com.stockcheck.backend.expense.ExpenseRepository;
 import com.stockcheck.backend.profit.dto.DailyProfitResponse;
 import com.stockcheck.backend.profit.dto.ProfitSummaryResponse;
 import com.stockcheck.backend.sale.SaleItemRepository;
@@ -14,6 +16,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 
 @Service
@@ -24,10 +28,16 @@ public class ProfitService {
 
     private final SaleRepository saleRepository;
     private final SaleItemRepository saleItemRepository;
+    private final ExpenseRepository expenseRepository;
 
-    public ProfitService(SaleRepository saleRepository, SaleItemRepository saleItemRepository) {
+    public ProfitService(
+            SaleRepository saleRepository,
+            SaleItemRepository saleItemRepository,
+            ExpenseRepository expenseRepository
+    ) {
         this.saleRepository = saleRepository;
         this.saleItemRepository = saleItemRepository;
+        this.expenseRepository = expenseRepository;
     }
 
     @Transactional(readOnly = true)
@@ -37,9 +47,11 @@ public class ProfitService {
         BigDecimal totalRevenue = saleItemRepository.calculateTotalRevenueByTenantId(tenantId);
         BigDecimal totalCost = saleItemRepository.calculateTotalCostByTenantId(tenantId);
         BigDecimal totalProfit = saleItemRepository.calculateTotalProfitByTenantId(tenantId);
+
         long totalSalesCount = saleRepository.findByTenantId(tenantId).stream()
                 .filter(sale -> !sale.isReturned())
                 .count();
+
         return new ProfitSummaryResponse(
                 totalRevenue != null ? totalRevenue : BigDecimal.ZERO,
                 totalCost != null ? totalCost : BigDecimal.ZERO,
@@ -48,26 +60,71 @@ public class ProfitService {
         );
     }
 
-    /** Per-day revenue/cost/profit for the "Прибыль" screen, most recent day first. */
+    /** Daily profit after expenses, with the most recent day first. */
     @Transactional(readOnly = true)
     public List<DailyProfitResponse> getDailyProfit() {
         UUID tenantId = currentTenantId();
         LocalDateTime since = LocalDateTime.now().minusDays(RETENTION_DAYS);
 
+        Map<LocalDate, DailyProfitResponse> dailyResults =
+                new TreeMap<>((first, second) -> second.compareTo(first));
+
         List<Object[]> rows = saleItemRepository.calculateDailyBreakdown(tenantId, since);
-        return rows.stream()
-                .map(row -> new DailyProfitResponse(
-                        (LocalDate) row[0],
-                        (BigDecimal) row[1],
-                        (BigDecimal) row[2],
-                        (BigDecimal) row[3],
-                        ((Number) row[4]).longValue() > 0
-                ))
-                .toList();
+
+        for (Object[] row : rows) {
+            LocalDate date = (LocalDate) row[0];
+
+            BigDecimal revenue = row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO;
+            BigDecimal cost = row[2] != null ? (BigDecimal) row[2] : BigDecimal.ZERO;
+            BigDecimal profit = row[3] != null ? (BigDecimal) row[3] : BigDecimal.ZERO;
+            boolean partiallyUnavailable = ((Number) row[4]).longValue() > 0;
+
+            dailyResults.put(date, new DailyProfitResponse(
+                    date,
+                    revenue,
+                    cost,
+                    BigDecimal.ZERO,
+                    profit,
+                    partiallyUnavailable
+            ));
+        }
+
+        List<Expense> expenses = expenseRepository
+                .findByTenantIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        tenantId,
+                        since
+                );
+
+        for (Expense expense : expenses) {
+            LocalDate date = expense.getCreatedAt().toLocalDate();
+
+            DailyProfitResponse daily = dailyResults.computeIfAbsent(
+                    date,
+                    day -> new DailyProfitResponse(
+                            day,
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO,
+                            false
+                    )
+            );
+
+            BigDecimal amount = expense.getAmount();
+
+            daily.setExpenses(daily.getExpenses().add(amount));
+            daily.setProfit(daily.getProfit().subtract(amount));
+        }
+
+        return dailyResults.values().stream().toList();
     }
 
     private UUID currentTenantId() {
         return SecurityUtils.getCurrentTenantId()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated tenant context is required"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Authenticated tenant context is required"
+                ));
     }
+
 }

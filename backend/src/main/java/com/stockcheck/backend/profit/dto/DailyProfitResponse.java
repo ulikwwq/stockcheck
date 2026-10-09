@@ -8,17 +8,27 @@ public class DailyProfitResponse {
     private LocalDate date;
     private BigDecimal revenue;
     private BigDecimal cost;
+    private BigDecimal expenses;
     private BigDecimal profit;
+
     /** True if at least one sold unit that day had no recorded purchase price. */
     private boolean profitPartiallyUnavailable;
 
     public DailyProfitResponse() {
     }
 
-    public DailyProfitResponse(LocalDate date, BigDecimal revenue, BigDecimal cost, BigDecimal profit, boolean profitPartiallyUnavailable) {
+    public DailyProfitResponse(
+            LocalDate date,
+            BigDecimal revenue,
+            BigDecimal cost,
+            BigDecimal expenses,
+            BigDecimal profit,
+            boolean profitPartiallyUnavailable
+    ) {
         this.date = date;
         this.revenue = revenue;
         this.cost = cost;
+        this.expenses = expenses;
         this.profit = profit;
         this.profitPartiallyUnavailable = profitPartiallyUnavailable;
     }
@@ -47,6 +57,14 @@ public class DailyProfitResponse {
         this.cost = cost;
     }
 
+    public BigDecimal getExpenses() {
+        return expenses;
+    }
+
+    public void setExpenses(BigDecimal expenses) {
+        this.expenses = expenses;
+    }
+
     public BigDecimal getProfit() {
         return profit;
     }
@@ -62,4 +80,5 @@ public class DailyProfitResponse {
     public void setProfitPartiallyUnavailable(boolean profitPartiallyUnavailable) {
         this.profitPartiallyUnavailable = profitPartiallyUnavailable;
     }
+
 }

@@ -6,9 +6,10 @@ export interface ProfitSummary {
 }
 
 export interface DailyProfit {
-  date: string;
-  revenue: number;
-  cost: number;
-  profit: number;
-  profitPartiallyUnavailable: boolean;
+date: string;
+revenue: number;
+cost: number;
+expenses: number;
+profit: number;
+profitPartiallyUnavailable: boolean;
 }

@@ -52,6 +52,12 @@ export function ProfitPage() {
                 <dt className="text-slate-500">Себестоимость</dt>
                 <dd className="font-semibold text-slate-900">{formatMoney(today?.cost ?? 0)}</dd>
               </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-slate-500">Расходы</dt>
+                <dd className="font-semibold text-red-600">
+                  −{formatMoney(today?.expenses ?? 0)}
+                </dd>
+              </div>
               <div className="flex items-center justify-between border-t border-slate-100 pt-2">
                 <dt className={(today?.profit ?? 0) < 0 ? "text-red-600" : "text-emerald-700"}>
                   {(today?.profit ?? 0) < 0 ? "Убыток" : "Прибыль"}
@@ -117,6 +123,13 @@ export function ProfitPage() {
                           {formatMoney(day.cost)}
                         </dd>
                       </div>
+                      <div className="flex items-center justify-between">
+                        <dt className="text-slate-500">Расходы</dt>
+                        <dd className="font-medium text-red-600">
+                          −{formatMoney(day.expenses ?? 0)}
+                        </dd>
+                      </div>
+
 
                       <div className="flex items-center justify-between border-t border-slate-100 pt-2">
                         <dt
