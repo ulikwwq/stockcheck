@@ -124,7 +124,7 @@ export function TenantsPage() {
   }
 
   async function handleToggleActive() {
-    if (!managingTenant) return;
+    if (!managingTenant || managingTenant.status === "DELETED") return;
     setManageError(null);
     setManageBusy(true);
     try {
@@ -199,7 +199,7 @@ export function TenantsPage() {
     setManageBusy(true);
     try {
       const updated = await tenantService.remove(managingTenant.id);
-      setTenants((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      setTenants((prev) => prev.filter((t) => t.id !== updated.id));
       setManagingTenant(null);
     } catch (err) {
       setManageError(err instanceof ApiError ? err.message : "Не удалось удалить бизнес");
@@ -356,10 +356,15 @@ export function TenantsPage() {
               type="button"
               variant={managingTenant.status === "ACTIVE" ? "danger" : "primary"}
               isLoading={manageBusy}
+              disabled={managingTenant.status === "DELETED"}
               onClick={handleToggleActive}
               className="w-full"
             >
-              {managingTenant.status === "ACTIVE" ? "Заблокировать" : "Активировать"}
+              {managingTenant.status === "ACTIVE"
+                ? "Заблокировать"
+                : managingTenant.status === "INACTIVE"
+                  ? "Активировать"
+                  : "Бизнес удален"}
             </Button>
 
             <hr className="border-slate-100" />
