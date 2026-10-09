@@ -41,6 +41,7 @@ export function TenantsPage() {
   const [shopName, setShopName] = useState("");
   const [ownerUsername, setOwnerUsername] = useState("");
   const [ownerPassword, setOwnerPassword] = useState("");
+  const [showOwnerPassword, setShowOwnerPassword] = useState(false);
   const [ownerFirstName, setOwnerFirstName] = useState("");
   const [ownerLastName, setOwnerLastName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export function TenantsPage() {
 
   const [managingTenant, setManagingTenant] = useState<Tenant | null>(null);
   const [resetPassword, setResetPassword] = useState("");
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [manageError, setManageError] = useState<string | null>(null);
   const [manageSuccess, setManageSuccess] = useState<string | null>(null);
@@ -289,15 +291,25 @@ export function TenantsPage() {
           </FormField>
 
           <FormField label="Пароль" htmlFor="t-owner-password" required>
-            <input
-              id="t-owner-password"
-              type="password"
-              required
-              minLength={6}
-              value={ownerPassword}
-              onChange={(e) => setOwnerPassword(e.target.value)}
-              className={inputClass}
-            />
+            <div className="relative">
+              <input
+                id="t-owner-password"
+                type={showOwnerPassword ? "text" : "password"}
+                required
+                minLength={6}
+                value={ownerPassword}
+                onChange={(e) => setOwnerPassword(e.target.value)}
+                className={`${inputClass} pr-20`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowOwnerPassword((shown) => !shown)}
+                className="absolute inset-y-0 right-3 text-sm font-medium text-slate-600 hover:text-slate-900"
+                aria-label={showOwnerPassword ? "Скрыть пароль" : "Показать пароль"}
+              >
+                {showOwnerPassword ? "Скрыть" : "Показать"}
+              </button>
+            </div>
           </FormField>
 
           <div className="grid grid-cols-2 gap-3">
@@ -371,15 +383,56 @@ export function TenantsPage() {
             </Button>
 
             <FormField label="Новый пароль владельца" htmlFor="t-reset-password">
-              <input
-                id="t-reset-password"
-                type="password"
-                minLength={6}
-                value={resetPassword}
-                onChange={(e) => setResetPassword(e.target.value)}
-                className={inputClass}
-                placeholder="Не менее 6 символов"
-              />
+              <div className="relative">
+                <input
+                  id="t-reset-password"
+                  type={showResetPassword ? "text" : "password"}
+                  minLength={6}
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  className={`${inputClass} pr-20`}
+                  placeholder="Не менее 6 символов"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowResetPassword((shown) => !shown)}
+                  className="absolute inset-y-0 right-3 flex items-center justify-center text-slate-500 hover:text-slate-900"
+                  aria-label={showOwnerPassword ? "Скрыть пароль" : "Показать пароль"}
+                >
+                  {showOwnerPassword ? (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.8}
+                      className="h-5 w-5"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.2A10.8 10.8 0 0112 5c5 0 8.5 4.2 9.5 7-.4 1.1-1.3 2.5-2.6 3.7M6.2 6.2C3.9 7.5 2.7 9.4 2.5 12c.7 2.1 3.9 7 9.5 7 1.2 0 2.3-.2 3.3-.7"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.8}
+                      className="h-5 w-5"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7z"
+                      />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </FormField>
             <Button
               type="button"

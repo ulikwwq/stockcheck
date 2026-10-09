@@ -17,6 +17,7 @@ export function SellersPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -24,6 +25,7 @@ export function SellersPage() {
 
   const [managingSeller, setManagingSeller] = useState<ManagedUser | null>(null);
   const [resetPassword, setResetPassword] = useState("");
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const [manageError, setManageError] = useState<string | null>(null);
   const [manageBusy, setManageBusy] = useState(false);
 
@@ -187,15 +189,25 @@ export function SellersPage() {
           </FormField>
 
           <FormField label="Пароль" htmlFor="s-password" required>
-            <input
-              id="s-password"
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputClass}
-            />
+            <div className="relative">
+              <input
+                id="s-password"
+                type={showPassword ? "text" : "password"}
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={`${inputClass} pr-20`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((shown) => !shown)}
+                className="absolute inset-y-0 right-3 text-sm font-medium text-slate-600 hover:text-slate-900"
+                aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+              >
+                {showPassword ? "Скрыть" : "Показать"}
+              </button>
+            </div>
           </FormField>
 
           <div className="grid grid-cols-2 gap-3">
@@ -249,17 +261,27 @@ export function SellersPage() {
               {managingSeller.active ? "Деактивировать" : "Активировать"}
             </Button>
 
-            <FormField label="Новый пароль" htmlFor="reset-password">
-              <input
-                id="reset-password"
-                type="password"
-                minLength={6}
-                value={resetPassword}
-                onChange={(e) => setResetPassword(e.target.value)}
-                className={inputClass}
-                placeholder="Не менее 6 символов"
-              />
-            </FormField>
+<FormField label="Новый пароль" htmlFor="reset-password">
+  <div className="relative">
+    <input
+      id="reset-password"
+      type={showResetPassword ? "text" : "password"}
+      minLength={6}
+      value={resetPassword}
+      onChange={(e) => setResetPassword(e.target.value)}
+      className={`${inputClass} pr-20`}
+      placeholder="Не менее 6 символов"
+    />
+    <button
+      type="button"
+      onClick={() => setShowResetPassword((shown) => !shown)}
+      className="absolute inset-y-0 right-3 text-sm font-medium text-slate-600 hover:text-slate-900"
+      aria-label={showResetPassword ? "Скрыть пароль" : "Показать пароль"}
+    >
+      {showResetPassword ? "Скрыть" : "Показать"}
+    </button>
+  </div>
+</FormField>
             <Button
               type="button"
               variant="secondary"
