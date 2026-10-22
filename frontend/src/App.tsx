@@ -10,6 +10,7 @@ import { SellersPage } from "./features/sellers/SellersPage";
 import { ProfitPage } from "./features/profit/ProfitPage";
 import { AuditLogPage } from "./features/audit/AuditLogPage";
 import { TenantsPage } from "./features/admin/TenantsPage";
+import { AnalyticsPage } from "./features/analytics/AnalyticsPage";
 
 function HomeRedirect() {
   const { user } = useAuth();
@@ -48,6 +49,7 @@ function App() {
           <ProtectedRoute roles={["ADMINISTRATOR"]}>{withLayout(<AuditLogPage />)}</ProtectedRoute>
         }
       />
+      <Route path="/analytics" element={<ProtectedRoute roles={["ADMINISTRATOR"]}>{withLayout(<AnalyticsPage />)}</ProtectedRoute>} />
       <Route
         path="/profit"
         element={<ProtectedRoute roles={["ADMINISTRATOR"]}>{withLayout(<ProfitPage />)}</ProtectedRoute>}

@@ -26,13 +26,20 @@ import java.util.UUID;
 public class TenantAdminController {
 
     private final TenantService tenantService;
+    private final TenantPurgeService tenantPurgeService;
 
-    public TenantAdminController(TenantService tenantService) {
+    public TenantAdminController(
+            TenantService tenantService,
+            TenantPurgeService tenantPurgeService
+    ) {
         this.tenantService = tenantService;
+        this.tenantPurgeService = tenantPurgeService;
     }
 
     @PostMapping
-    public ResponseEntity<TenantResponse> createTenant(@Valid @RequestBody CreateTenantRequest request) {
+    public ResponseEntity<TenantResponse> createTenant(
+            @Valid @RequestBody CreateTenantRequest request
+    ) {
         TenantResponse response = tenantService.createTenant(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -43,18 +50,28 @@ public class TenantAdminController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TenantResponse> getTenantById(@PathVariable UUID id) {
+    public ResponseEntity<TenantResponse> getTenantById(
+            @PathVariable UUID id
+    ) {
         return ResponseEntity.ok(tenantService.getTenantById(id));
     }
 
     @PatchMapping("/{id}/activate")
-    public ResponseEntity<TenantResponse> activate(@PathVariable UUID id) {
-        return ResponseEntity.ok(tenantService.setStatus(id, TenantStatus.ACTIVE));
+    public ResponseEntity<TenantResponse> activate(
+            @PathVariable UUID id
+    ) {
+        return ResponseEntity.ok(
+                tenantService.setStatus(id, TenantStatus.ACTIVE)
+        );
     }
 
     @PatchMapping("/{id}/deactivate")
-    public ResponseEntity<TenantResponse> deactivate(@PathVariable UUID id) {
-        return ResponseEntity.ok(tenantService.setStatus(id, TenantStatus.INACTIVE));
+    public ResponseEntity<TenantResponse> deactivate(
+            @PathVariable UUID id
+    ) {
+        return ResponseEntity.ok(
+                tenantService.setStatus(id, TenantStatus.INACTIVE)
+        );
     }
 
     @PostMapping("/{id}/reset-owner-password")
@@ -71,16 +88,17 @@ public class TenantAdminController {
             @PathVariable UUID id,
             @Valid @RequestBody ChangeUsernameRequest request
     ) {
-        return ResponseEntity.ok(tenantService.changeOwnerUsername(id, request));
+        return ResponseEntity.ok(
+                tenantService.changeOwnerUsername(id, request)
+        );
     }
 
-    /**
-     * Soft-delete: preserves all business data (products, sales, users,
-     * history) and simply blocks the business's users from logging in.
-     * Distinct from /deactivate so SUPER_ADMIN has a real "Удалить" action.
-     */
     @DeleteMapping("/{id}")
-    public ResponseEntity<TenantResponse> deleteTenant(@PathVariable UUID id) {
-        return ResponseEntity.ok(tenantService.deleteTenant(id));
+    public ResponseEntity<Void> deleteTenant(
+            @PathVariable UUID id
+    ) {
+        tenantPurgeService.purge(id);
+        return ResponseEntity.noContent().build();
     }
 }
+

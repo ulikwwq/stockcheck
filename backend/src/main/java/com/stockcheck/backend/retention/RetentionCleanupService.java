@@ -12,18 +12,23 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 /**
- * Enforces the platform's 30-day operational data retention policy.
+ * Enforces the platform's data retention policy.
  *
- * <p>Only temporary/history data is removed: sales (and, via DB cascade,
- * their sale items), stock movements, and audit log entries older than 30
- * days. Active business data — products, users, businesses, current
- * inventory — is never touched here.
+ * <p>Sales and stock movements are retained for 13 months to support
+ * 12 months of history with an additional buffer.
+ * Audit logs are retained for 30 days.
+ *
+ * <p>Active business data — products, users, businesses, and current
+ * inventory — is not removed by this service.
  */
 @Component
 public class RetentionCleanupService {
 
-    private static final Logger log = LoggerFactory.getLogger(RetentionCleanupService.class);
-    private static final int RETENTION_DAYS = 30;
+    private static final Logger log =
+            LoggerFactory.getLogger(RetentionCleanupService.class);
+
+    private static final int AUDIT_RETENTION_DAYS = 30;
+    private static final int SALES_RETENTION_MONTHS = 13;
 
     private final SaleRepository saleRepository;
     private final StockMovementRepository stockMovementRepository;
@@ -39,19 +44,36 @@ public class RetentionCleanupService {
         this.auditLogRepository = auditLogRepository;
     }
 
-    /** Runs once a day at 03:00 server time — low-traffic hours for a small business app. */
+    /**
+     * Runs once a day at 03:00 server time.
+     */
     @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     public void cleanupOldData() {
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(RETENTION_DAYS);
+        LocalDateTime salesCutoff =
+                LocalDateTime.now().minusMonths(SALES_RETENTION_MONTHS);
 
-        int deletedSales = saleRepository.deleteByCreatedAtBefore(cutoff);
-        int deletedMovements = stockMovementRepository.deleteByCreatedAtBefore(cutoff);
-        int deletedAuditLogs = auditLogRepository.deleteByCreatedAtBefore(cutoff);
+        LocalDateTime auditCutoff =
+                LocalDateTime.now().minusDays(AUDIT_RETENTION_DAYS);
+
+        int deletedSales =
+                saleRepository.deleteByCreatedAtBefore(salesCutoff);
+
+        int deletedMovements =
+                stockMovementRepository.deleteByCreatedAtBefore(salesCutoff);
+
+        int deletedAuditLogs =
+                auditLogRepository.deleteByCreatedAtBefore(auditCutoff);
 
         log.info(
-                "Retention cleanup complete: removed {} sales (+items), {} stock movements, {} audit logs older than {}",
-                deletedSales, deletedMovements, deletedAuditLogs, cutoff
+                "Retention cleanup complete: removed {} sales (+items), " +
+                        "{} stock movements older than {}, " +
+                        "{} audit logs older than {}",
+                deletedSales,
+                deletedMovements,
+                salesCutoff,
+                deletedAuditLogs,
+                auditCutoff
         );
     }
 }

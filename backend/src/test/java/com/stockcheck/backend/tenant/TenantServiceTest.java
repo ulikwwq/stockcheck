@@ -6,6 +6,7 @@ import com.stockcheck.backend.role.UserRole;
 import com.stockcheck.backend.role.UserRoleRepository;
 import com.stockcheck.backend.shop.Shop;
 import com.stockcheck.backend.shop.ShopRepository;
+import com.stockcheck.backend.tenant.dto.ChangeUsernameRequest;
 import com.stockcheck.backend.tenant.dto.CreateTenantRequest;
 import com.stockcheck.backend.tenant.dto.ResetPasswordRequest;
 import com.stockcheck.backend.tenant.dto.TenantResponse;
@@ -70,29 +71,49 @@ class TenantServiceTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(tenantRepository.save(any(Tenant.class))).thenAnswer(invocation -> {
-            Tenant t = invocation.getArgument(0);
-            if (ReflectionTestUtils.getField(t, "id") == null) {
-                ReflectionTestUtils.setField(t, "id", UUID.randomUUID());
-            }
-            return t;
-        });
-        lenient().when(shopRepository.save(any(Shop.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
-            User u = invocation.getArgument(0);
-            if (ReflectionTestUtils.getField(u, "id") == null) {
-                ReflectionTestUtils.setField(u, "id", UUID.randomUUID());
-            }
-            return u;
-        });
+        lenient().when(tenantRepository.save(any(Tenant.class)))
+                .thenAnswer(invocation -> {
+                    Tenant tenant = invocation.getArgument(0);
+
+                    if (ReflectionTestUtils.getField(tenant, "id") == null) {
+                        ReflectionTestUtils.setField(
+                                tenant,
+                                "id",
+                                UUID.randomUUID()
+                        );
+                    }
+
+                    return tenant;
+                });
+
+        lenient().when(shopRepository.save(any(Shop.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        lenient().when(userRepository.save(any(User.class)))
+                .thenAnswer(invocation -> {
+                    User user = invocation.getArgument(0);
+
+                    if (ReflectionTestUtils.getField(user, "id") == null) {
+                        ReflectionTestUtils.setField(
+                                user,
+                                "id",
+                                UUID.randomUUID()
+                        );
+                    }
+
+                    return user;
+                });
     }
 
     @Test
     @DisplayName("createTenant creates Tenant, default Shop, Owner User, and assigns ADMINISTRATOR role")
     void shouldCreateTenantWithShopAndOwner() {
         CreateTenantRequest request = buildRequest();
-        when(passwordEncoder.encode("secretPass")).thenReturn("encodedPassword");
-        when(userRepository.existsByUsername("dmitry_owner")).thenReturn(false);
+
+        when(passwordEncoder.encode("secretPass"))
+                .thenReturn("encodedPassword");
+        when(userRepository.existsByUsername("dmitry_owner"))
+                .thenReturn(false);
 
         TenantResponse response = tenantService.createTenant(request);
 
@@ -101,25 +122,40 @@ class TenantServiceTest {
         assertThat(response.getStatus()).isEqualTo(TenantStatus.ACTIVE);
         assertThat(response.getOwnerUsername()).isEqualTo("dmitry_owner");
 
-        ArgumentCaptor<Shop> shopCaptor = ArgumentCaptor.forClass(Shop.class);
+        ArgumentCaptor<Shop> shopCaptor =
+                ArgumentCaptor.forClass(Shop.class);
+
         verify(shopRepository).save(shopCaptor.capture());
-        assertThat(shopCaptor.getValue().getName()).isEqualTo("Flagship Store");
 
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        assertThat(shopCaptor.getValue().getName())
+                .isEqualTo("Flagship Store");
+
+        ArgumentCaptor<User> userCaptor =
+                ArgumentCaptor.forClass(User.class);
+
         verify(userRepository).save(userCaptor.capture());
-        assertThat(userCaptor.getValue().getUsername()).isEqualTo("dmitry_owner");
-        assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo("encodedPassword");
 
-        ArgumentCaptor<UserRole> roleCaptor = ArgumentCaptor.forClass(UserRole.class);
+        assertThat(userCaptor.getValue().getUsername())
+                .isEqualTo("dmitry_owner");
+        assertThat(userCaptor.getValue().getPasswordHash())
+                .isEqualTo("encodedPassword");
+
+        ArgumentCaptor<UserRole> roleCaptor =
+                ArgumentCaptor.forClass(UserRole.class);
+
         verify(userRoleRepository).save(roleCaptor.capture());
-        assertThat(roleCaptor.getValue().getRole()).isEqualTo(RoleName.ADMINISTRATOR);
+
+        assertThat(roleCaptor.getValue().getRole())
+                .isEqualTo(RoleName.ADMINISTRATOR);
     }
 
     @Test
     @DisplayName("createTenant rejects a username that is already taken")
     void shouldRejectDuplicateUsername() {
         CreateTenantRequest request = buildRequest();
-        when(userRepository.existsByUsername("dmitry_owner")).thenReturn(true);
+
+        when(userRepository.existsByUsername("dmitry_owner"))
+                .thenReturn(true);
 
         assertThatThrownBy(() -> tenantService.createTenant(request))
                 .isInstanceOf(ResponseStatusException.class)
@@ -131,12 +167,19 @@ class TenantServiceTest {
     void shouldDeactivateTenant() {
         Tenant tenant = new Tenant("Super Market");
         UUID tenantId = UUID.randomUUID();
+
         ReflectionTestUtils.setField(tenant, "id", tenantId);
-        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
 
-        TenantResponse response = tenantService.setStatus(tenantId, TenantStatus.INACTIVE);
+        when(tenantRepository.findById(tenantId))
+                .thenReturn(Optional.of(tenant));
 
-        assertThat(response.getStatus()).isEqualTo(TenantStatus.INACTIVE);
+        TenantResponse response = tenantService.setStatus(
+                tenantId,
+                TenantStatus.INACTIVE
+        );
+
+        assertThat(response.getStatus())
+                .isEqualTo(TenantStatus.INACTIVE);
     }
 
     @Test
@@ -144,12 +187,23 @@ class TenantServiceTest {
     void shouldResetOwnerPassword() {
         Tenant tenant = new Tenant("Super Market");
         UUID tenantId = UUID.randomUUID();
+
         ReflectionTestUtils.setField(tenant, "id", tenantId);
-        User owner = new User(tenant, "dmitry_owner", "oldHash", "Dmitry", "Sidorov");
+
+        User owner = new User(
+                tenant,
+                "dmitry_owner",
+                "oldHash",
+                "Dmitry",
+                "Sidorov"
+        );
+
         tenant.setOwner(owner);
 
-        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
-        when(passwordEncoder.encode("newSecret123")).thenReturn("newHash");
+        when(tenantRepository.findById(tenantId))
+                .thenReturn(Optional.of(tenant));
+        when(passwordEncoder.encode("newSecret123"))
+                .thenReturn("newHash");
 
         ResetPasswordRequest request = new ResetPasswordRequest();
         request.setNewPassword("newSecret123");
@@ -157,23 +211,8 @@ class TenantServiceTest {
         tenantService.resetOwnerPassword(tenantId, request);
 
         assertThat(owner.getPasswordHash()).isEqualTo("newHash");
+
         verify(userRepository).save(owner);
-    }
-
-    @Test
-    @DisplayName("deleteTenant soft-deletes the business (sets DELETED status) without removing any data")
-    void shouldSoftDeleteTenant() {
-        Tenant tenant = new Tenant("Super Market");
-        UUID tenantId = UUID.randomUUID();
-        ReflectionTestUtils.setField(tenant, "id", tenantId);
-        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
-
-        TenantResponse response = tenantService.deleteTenant(tenantId);
-
-        assertThat(response.getStatus()).isEqualTo(TenantStatus.DELETED);
-        // Soft delete only flips status - the same Tenant row is saved, never removed.
-        verify(tenantRepository, org.mockito.Mockito.never()).delete(any(Tenant.class));
-        verify(tenantRepository, org.mockito.Mockito.atLeastOnce()).save(tenant);
     }
 
     @Test
@@ -181,24 +220,39 @@ class TenantServiceTest {
     void shouldChangeOwnerUsername() {
         Tenant tenant = new Tenant("Super Market");
         UUID tenantId = UUID.randomUUID();
+
         ReflectionTestUtils.setField(tenant, "id", tenantId);
-        User owner = new User(tenant, "old_login", "hash", "Dmitry", "Sidorov");
+
+        User owner = new User(
+                tenant,
+                "old_login",
+                "hash",
+                "Dmitry",
+                "Sidorov"
+        );
+
         UUID ownerId = UUID.randomUUID();
+
         ReflectionTestUtils.setField(owner, "id", ownerId);
         tenant.setOwner(owner);
 
-        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
-        when(userRepository.existsByUsername("new_login")).thenReturn(false);
+        when(tenantRepository.findById(tenantId))
+                .thenReturn(Optional.of(tenant));
+        when(userRepository.existsByUsername("new_login"))
+                .thenReturn(false);
 
-        com.stockcheck.backend.tenant.dto.ChangeUsernameRequest request =
-                new com.stockcheck.backend.tenant.dto.ChangeUsernameRequest();
+        ChangeUsernameRequest request = new ChangeUsernameRequest();
         request.setNewUsername("new_login");
 
-        TenantResponse response = tenantService.changeOwnerUsername(tenantId, request);
+        TenantResponse response = tenantService.changeOwnerUsername(
+                tenantId,
+                request
+        );
 
         assertThat(response.getOwnerUsername()).isEqualTo("new_login");
-        assertThat(owner.getId()).isEqualTo(ownerId); // same user, same ID
-        assertThat(owner.getTenant()).isSameAs(tenant); // same tenant
+        assertThat(owner.getId()).isEqualTo(ownerId);
+        assertThat(owner.getTenant()).isSameAs(tenant);
+
         verify(userRepository).save(owner);
     }
 
@@ -207,18 +261,30 @@ class TenantServiceTest {
     void shouldRejectDuplicateUsernameOnChange() {
         Tenant tenant = new Tenant("Super Market");
         UUID tenantId = UUID.randomUUID();
+
         ReflectionTestUtils.setField(tenant, "id", tenantId);
-        User owner = new User(tenant, "old_login", "hash", "Dmitry", "Sidorov");
+
+        User owner = new User(
+                tenant,
+                "old_login",
+                "hash",
+                "Dmitry",
+                "Sidorov"
+        );
+
         tenant.setOwner(owner);
 
-        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
-        when(userRepository.existsByUsername("taken_login")).thenReturn(true);
+        when(tenantRepository.findById(tenantId))
+                .thenReturn(Optional.of(tenant));
+        when(userRepository.existsByUsername("taken_login"))
+                .thenReturn(true);
 
-        com.stockcheck.backend.tenant.dto.ChangeUsernameRequest request =
-                new com.stockcheck.backend.tenant.dto.ChangeUsernameRequest();
+        ChangeUsernameRequest request = new ChangeUsernameRequest();
         request.setNewUsername("taken_login");
 
-        assertThatThrownBy(() -> tenantService.changeOwnerUsername(tenantId, request))
+        assertThatThrownBy(
+                () -> tenantService.changeOwnerUsername(tenantId, request)
+        )
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("Такой логин уже существует");
     }

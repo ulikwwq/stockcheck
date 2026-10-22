@@ -3,7 +3,7 @@ spring:
     name: stockcheck-backend
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5434/stockcheck}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/stockcheck}
     username: ${DB_USERNAME:stockcheck}
     password: ${DB_PASSWORD:stockcheck}
 

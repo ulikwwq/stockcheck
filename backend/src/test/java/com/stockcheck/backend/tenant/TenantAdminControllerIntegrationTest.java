@@ -56,6 +56,9 @@ class TenantAdminControllerIntegrationTest {
     @MockitoBean
     private TenantService tenantService;
 
+    @MockitoBean
+    private TenantPurgeService tenantPurgeService;
+
     private CreateTenantRequest buildRequest() {
         CreateTenantRequest request = new CreateTenantRequest();
         request.setTenantName("Retail Network");
@@ -69,8 +72,16 @@ class TenantAdminControllerIntegrationTest {
 
     private String superAdminToken() {
         StockcheckPrincipal adminPrincipal = new StockcheckPrincipal(
-                UUID.randomUUID(), null, "superadmin", "Root", "Admin", "", true, List.of("SUPER_ADMIN")
+                UUID.randomUUID(),
+                null,
+                "superadmin",
+                "Root",
+                "Admin",
+                "",
+                true,
+                List.of("SUPER_ADMIN")
         );
+
         return jwtService.generateToken(adminPrincipal);
     }
 
@@ -80,11 +91,14 @@ class TenantAdminControllerIntegrationTest {
         String token = superAdminToken();
 
         UUID tenantId = UUID.randomUUID();
+
         TenantResponse response = new TenantResponse();
         response.setId(tenantId);
         response.setName("Retail Network");
         response.setStatus(TenantStatus.ACTIVE);
-        when(tenantService.createTenant(any(CreateTenantRequest.class))).thenReturn(response);
+
+        when(tenantService.createTenant(any(CreateTenantRequest.class)))
+                .thenReturn(response);
 
         mockMvc.perform(post("/api/v1/admin/tenants")
                         .header("Authorization", "Bearer " + token)
@@ -100,11 +114,14 @@ class TenantAdminControllerIntegrationTest {
     void shouldDeactivateTenant() throws Exception {
         String token = superAdminToken();
         UUID tenantId = UUID.randomUUID();
+
         TenantResponse response = new TenantResponse();
         response.setId(tenantId);
         response.setName("Retail Network");
         response.setStatus(TenantStatus.INACTIVE);
-        when(tenantService.setStatus(tenantId, TenantStatus.INACTIVE)).thenReturn(response);
+
+        when(tenantService.setStatus(tenantId, TenantStatus.INACTIVE))
+                .thenReturn(response);
 
         mockMvc.perform(patch("/api/v1/admin/tenants/" + tenantId + "/deactivate")
                         .header("Authorization", "Bearer " + token))
@@ -116,8 +133,16 @@ class TenantAdminControllerIntegrationTest {
     @DisplayName("POST /api/v1/admin/tenants returns 403 Forbidden when user is ADMINISTRATOR (not SUPER_ADMIN)")
     void shouldReturn403WhenNotSuperAdmin() throws Exception {
         StockcheckPrincipal ownerPrincipal = new StockcheckPrincipal(
-                UUID.randomUUID(), UUID.randomUUID(), "shop_owner", "Shop", "Owner", "", true, List.of("ADMINISTRATOR")
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "shop_owner",
+                "Shop",
+                "Owner",
+                "",
+                true,
+                List.of("ADMINISTRATOR")
         );
+
         String token = jwtService.generateToken(ownerPrincipal);
 
         mockMvc.perform(post("/api/v1/admin/tenants")
@@ -138,28 +163,30 @@ class TenantAdminControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/v1/admin/tenants/{id} soft-deletes a business when user is SUPER_ADMIN")
+    @DisplayName("DELETE /api/v1/admin/tenants/{id} deletes a business when user is SUPER_ADMIN")
     void shouldDeleteTenantWhenSuperAdmin() throws Exception {
         String token = superAdminToken();
         UUID tenantId = UUID.randomUUID();
-        TenantResponse response = new TenantResponse();
-        response.setId(tenantId);
-        response.setName("Retail Network");
-        response.setStatus(TenantStatus.DELETED);
-        when(tenantService.deleteTenant(tenantId)).thenReturn(response);
 
         mockMvc.perform(delete("/api/v1/admin/tenants/" + tenantId)
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("DELETED"));
+                .andExpect(status().isNoContent());
     }
 
     @Test
     @DisplayName("DELETE /api/v1/admin/tenants/{id} returns 403 Forbidden when user is ADMINISTRATOR (not SUPER_ADMIN)")
     void shouldReturn403WhenNonSuperAdminDeletesTenant() throws Exception {
         StockcheckPrincipal ownerPrincipal = new StockcheckPrincipal(
-                UUID.randomUUID(), UUID.randomUUID(), "shop_owner", "Shop", "Owner", "", true, List.of("ADMINISTRATOR")
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "shop_owner",
+                "Shop",
+                "Owner",
+                "",
+                true,
+                List.of("ADMINISTRATOR")
         );
+
         String token = jwtService.generateToken(ownerPrincipal);
 
         mockMvc.perform(delete("/api/v1/admin/tenants/" + UUID.randomUUID())
@@ -174,13 +201,17 @@ class TenantAdminControllerIntegrationTest {
     void shouldChangeOwnerUsername() throws Exception {
         String token = superAdminToken();
         UUID tenantId = UUID.randomUUID();
+
         TenantResponse response = new TenantResponse();
         response.setId(tenantId);
         response.setName("Retail Network");
         response.setStatus(TenantStatus.ACTIVE);
         response.setOwnerUsername("new_login");
-        when(tenantService.changeOwnerUsername(any(UUID.class), any(ChangeUsernameRequest.class)))
-                .thenReturn(response);
+
+        when(tenantService.changeOwnerUsername(
+                any(UUID.class),
+                any(ChangeUsernameRequest.class)
+        )).thenReturn(response);
 
         ChangeUsernameRequest request = new ChangeUsernameRequest();
         request.setNewUsername("new_login");
