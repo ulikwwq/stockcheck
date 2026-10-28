@@ -3,7 +3,8 @@ import type { RoleName } from "../types/auth";
 export interface NavItem {
   to: string;
   label: string;
-  icon: "products" | "sellers" | "history" | "profit" | "business";
+  icon:
+    "products" | "sellers" | "history" | "profit" | "business" | "analytics";
 }
 
 export function isOwner(roles: RoleName[]): boolean {
@@ -19,10 +20,9 @@ export function isSeller(roles: RoleName[]): boolean {
 }
 
 /**
- * Deliberately short. Per spec the administrator gets exactly four
- * sections; the seller gets a single one (just the product list — selling
- * happens by tapping a product, not via a separate nav item). Technical
- * concepts (shops, stock movements, categories) are never surfaced here.
+ * The administrator gets five sections.
+ * The seller gets only the product list.
+ * The super administrator gets the tenant management section.
  */
 export function getNavItems(roles: RoleName[]): NavItem[] {
   if (isSuperAdmin(roles)) {
@@ -35,6 +35,7 @@ export function getNavItems(roles: RoleName[]): NavItem[] {
       { to: "/sellers", label: "Продавцы", icon: "sellers" },
       { to: "/history", label: "История", icon: "history" },
       { to: "/profit", label: "Прибыль", icon: "profit" },
+      { to: "/analytics", label: "Аналитика", icon: "analytics" },
     ];
   }
 
