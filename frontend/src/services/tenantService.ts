@@ -41,7 +41,7 @@ export const tenantService = {
     });
   },
 
-  remove(id: string): Promise<Tenant> {
-    return apiRequest<Tenant>(`/admin/tenants/${id}`, { method: "DELETE" });
+  remove(id: string): Promise<void> {
+    return apiRequest<void>(`/admin/tenants/${id}`, { method: "DELETE" });
   },
 };

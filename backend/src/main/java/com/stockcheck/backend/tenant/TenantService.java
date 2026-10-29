@@ -107,7 +107,7 @@ public class TenantService {
 
     @Transactional(readOnly = true)
     public List<TenantResponse> getAllTenants() {
-        return tenantRepository.findAll()
+        return tenantRepository.findByStatusNot(TenantStatus.DELETED)
                 .stream()
                 .map(TenantResponse::fromEntity)
                 .toList();

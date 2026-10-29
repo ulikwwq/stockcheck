@@ -187,9 +187,13 @@ export function TenantsPage() {
 
   async function handleDeleteTenant() {
     if (!managingTenant) return;
+
+    const tenantId = managingTenant.id;
+    const tenantName = managingTenant.name;
+
     if (
       !window.confirm(
-        `Удалить бизнес «${managingTenant.name}»? Данные бизнеса сохранятся, но вход для его пользователей будет заблокирован.`
+        `Навсегда удалить бизнес «${tenantName}» и все его данные? Это действие необратимо.`
       )
     ) {
       return;
@@ -197,12 +201,17 @@ export function TenantsPage() {
 
     setManageError(null);
     setManageBusy(true);
+
     try {
-      const updated = await tenantService.remove(managingTenant.id);
-      setTenants((prev) => prev.filter((t) => t.id !== updated.id));
+      await tenantService.remove(tenantId);
+      setTenants((prev) => prev.filter((tenant) => tenant.id !== tenantId));
       setManagingTenant(null);
     } catch (err) {
-      setManageError(err instanceof ApiError ? err.message : "Не удалось удалить бизнес");
+      setManageError(
+        err instanceof ApiError
+          ? err.message
+          : "Не удалось удалить бизнес"
+      );
     } finally {
       setManageBusy(false);
     }
