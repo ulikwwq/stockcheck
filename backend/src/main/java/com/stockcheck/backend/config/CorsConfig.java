@@ -15,10 +15,14 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(
+        // Allowed origin patterns supporting dynamic ports for local development (e.g. Flutter Web)
+        // while safely supporting allowCredentials(true) without using wildcard allowedOrigins("*").
+        configuration.setAllowedOriginPatterns(
                 List.of(
+                        "https://stockcheck-alpha.vercel.app",
                         "http://localhost:5173",
-                        "https://stockcheck-alpha.vercel.app"
+                        "http://localhost:*",
+                        "http://127.0.0.1:*"
                 )
         );
 
@@ -33,8 +37,10 @@ public class CorsConfig {
                 )
         );
 
+        // Preserve all required request headers (including Authorization and Content-Type)
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
